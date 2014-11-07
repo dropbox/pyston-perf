@@ -7,8 +7,9 @@ import subprocess
 import time
 
 import codespeed_submit
+import model
 
-def run_tests(executables, benchmarks, callback, benchmark_dir):
+def run_tests(executables, benchmarks, callbacks, benchmark_dir):
     times = [[] for e in executables]
 
     for b in benchmarks:
@@ -17,12 +18,14 @@ def run_tests(executables, benchmarks, callback, benchmark_dir):
             subprocess.check_call(e.args + [os.path.join(benchmark_dir, b)], stdout=open("/dev/null", 'w'))
             elapsed = time.time() - start
 
-            print "%s %s: % 4.1fs" % (e.name.rjust(15), b.ljust(35), elapsed)
+            print "%s %s: % 4.1fs" % (e.name.rjust(15), b.ljust(35), elapsed),
 
             time_list.append(elapsed)
 
-            if callback:
-                callback(e, b, elapsed)
+            for cb in callbacks:
+                cb(e, b, elapsed)
+
+            print
 
     for e, time_list in zip(executables, times):
         t = 1
@@ -54,7 +57,14 @@ def main():
     parser.add_argument("--submit", dest="submit", action="store_true")
     parser.add_argument("--run_pyston", dest="run_pyston", action="store_false")
     parser.add_argument("--run_cpython", dest="run_cpython", action="store_true")
+    parser.add_argument("--result_name", dest="result_name", action="store", nargs="?", default=None, const="tmp")
+    parser.add_argument("--compare", dest="compare_to", action="store", nargs="?", default=None, const="tmp")
+    parser.add_argument("--clear", dest="clear", action="store", nargs="?", default=None, const="tmp")
+    # parser.add_argument("--result_name", dest="result_name", action=TestAction)
     args = parser.parse_args()
+
+    if args.clear:
+        pass
 
     executables = []
 
@@ -89,7 +99,7 @@ def main():
         "spectral_norm.py",
         ]]
 
-    callback = None
+    callbacks = []
     if args.submit:
         git_rev = get_git_rev(args.pyston_dir)
         def submit_callback(exe, benchmark, elapsed):
@@ -102,9 +112,9 @@ def main():
             if "cpython" in exe.name:
                 commitid = "default"
             codespeed_submit.submit(commitid=commitid, benchmark=benchmark, executable=exe.name, value=elapsed)
-        callback = submit_callback
+        callbacks.append(submit_callback)
 
-    run_tests(executables, benchmarks, callback, args.pyston_dir)
+    run_tests(executables, benchmarks, callbacks, args.pyston_dir)
 
 if __name__ == "__main__":
     main()
