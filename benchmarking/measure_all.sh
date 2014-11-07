@@ -32,6 +32,8 @@ while true; do
     fi
 
     git checkout $CUR
+    make clean
+    make pyston_release
     python $BENCHMARKING_DIR/measure_perf.py --submit --save_by_commit --skip_repeated
 
     CUR=$(nextrev $CUR)
