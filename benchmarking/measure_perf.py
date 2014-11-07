@@ -9,11 +9,21 @@ import time
 import codespeed_submit
 import model
 
-def run_tests(executables, benchmarks, callbacks, benchmark_dir):
+def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
     times = [[] for e in executables]
 
     for b in benchmarks:
         for e, time_list in zip(executables, times):
+            skip = False
+            for f in filters:
+                if f(e, b):
+                    skip = True
+                    break
+
+            if skip:
+                print "%s %s: skipped" % (e.name.rjust(15), b.ljust(35))
+                continue
+
             start = time.time()
             subprocess.check_call(e.args + [os.path.join(benchmark_dir, b)], stdout=open("/dev/null", 'w'))
             elapsed = time.time() - start
@@ -57,10 +67,11 @@ def main():
     parser.add_argument("--submit", dest="submit", action="store_true")
     parser.add_argument("--run_pyston", dest="run_pyston", action="store_false")
     parser.add_argument("--run_cpython", dest="run_cpython", action="store_true")
-    parser.add_argument("--result_name", dest="result_name", action="store", nargs="?", default=None, const="tmp")
+    parser.add_argument("--save", dest="save_report", action="store", nargs="?", default=None, const="tmp")
     parser.add_argument("--compare", dest="compare_to", action="store", nargs="?", default=None, const="tmp")
     parser.add_argument("--clear", dest="clear", action="store", nargs="?", default=None, const="tmp")
-    # parser.add_argument("--result_name", dest="result_name", action=TestAction)
+    parser.add_argument("--skip_repeated", dest="skip_repeated", action="store_true")
+    parser.add_argument("--save_by_commit", dest="save_by_commit", action="store_true")
     args = parser.parse_args()
 
     if args.clear:
@@ -93,15 +104,19 @@ def main():
         "nbody_med.py",
         "interp2.py",
         "raytrace.py",
-        "chaos.py",
         "nbody.py",
         "fannkuch.py",
+        "chaos.py",
         "spectral_norm.py",
         ]]
 
     callbacks = []
+    filters = []
+
+    git_rev = None
+
     if args.submit:
-        git_rev = get_git_rev(args.pyston_dir)
+        git_rev = git_rev or get_git_rev(args.pyston_dir)
         def submit_callback(exe, benchmark, elapsed):
             benchmark = os.path.basename(benchmark)
 
@@ -114,7 +129,41 @@ def main():
             codespeed_submit.submit(commitid=commitid, benchmark=benchmark, executable=exe.name, value=elapsed)
         callbacks.append(submit_callback)
 
-    run_tests(executables, benchmarks, callbacks, args.pyston_dir)
+    if args.save_by_commit:
+        git_rev = git_rev or get_git_rev(args.pyston_dir)
+        def save_callback(exe, benchmark, elapsed):
+            report_name = "%s_%s" % (exe.name, git_rev)
+            model.save_result(report_name, benchmark, elapsed)
+        callbacks.append(save_callback)
+
+    if args.compare_to:
+        report_name = args.compare_to
+        print "Comparing to '%s'" % report_name
+        def compare_callback(exe, benchmark, elapsed):
+            v = model.get_result(report_name, benchmark)
+            if v is None:
+                print "(no previous)",
+            else:
+                print "Previous: %.1f (%+0.1f%%)" % (v, (elapsed - v) / v * 100),
+        callbacks.append(compare_callback)
+
+    if args.save_report:
+        report_name = args.save_report
+        print "Saving results as '%s'" % report_name
+        def save_report_callback(exe, benchmark, elapsed):
+            model.save_result(report_name, benchmark, elapsed)
+        callbacks.append(save_report_callback)
+
+    if args.skip_repeated:
+        git_rev = git_rev or get_git_rev(args.pyston_dir)
+        def repeated_filter(exe, benchmark):
+            v = model.get_result("%s_%s" % (exe.name, git_rev), benchmark)
+            if v:
+                return True
+            return False
+        filters.append(repeated_filter)
+
+    run_tests(executables, benchmarks, filters, callbacks, args.pyston_dir)
 
 if __name__ == "__main__":
     main()

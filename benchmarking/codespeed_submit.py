@@ -45,12 +45,21 @@ def submit(commitid, benchmark, executable, value):
     response = "None"
     print "Saving result for executable %s, revision %s, benchmark %s" % (
         data['executable'], data['commitid'], data['benchmark'])
-    try:
-        f = urllib2.urlopen(CODESPEED_URL + 'result/add/', params)
-    except urllib2.HTTPError as e:
-        print str(e)
-        print e.read()
-        raise
+
+    retries = 1
+    while True:
+        try:
+            f = urllib2.urlopen(CODESPEED_URL + 'result/add/', params)
+            break
+        except urllib2.HTTPError as e:
+            print str(e)
+
+            if retries > 0 and e.code in (500,):
+                print "Retrying..."
+                continue
+
+            print e.read()
+            raise
     response = f.read()
     f.close()
     print "Server (%s) response: %s\n" % (CODESPEED_URL, response)
