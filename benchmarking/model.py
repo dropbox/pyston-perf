@@ -1,6 +1,7 @@
+import os.path
 import sqlite3
 
-conn = sqlite3.connect("data.db")
+conn = sqlite3.connect(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data.db"))
 conn.cursor().execute("""CREATE TABLE IF NOT EXISTS results
         (report text, benchmark text, time real)
         """)

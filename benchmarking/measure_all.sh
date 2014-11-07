@@ -32,7 +32,7 @@ while true; do
     fi
 
     git checkout $CUR
-    python $BENCHMARKING_DIR/measure_perf.py --submit
+    python $BENCHMARKING_DIR/measure_perf.py --submit --save_by_commit --skip_repeated
 
     CUR=$(nextrev $CUR)
     if [ -z "$CUR" ]; then
