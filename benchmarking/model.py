@@ -6,6 +6,11 @@ conn.cursor().execute("""CREATE TABLE IF NOT EXISTS results
         (report text, benchmark text, time real)
         """)
 
+def clear_report(report):
+    print "Deleting report '%s'" % (report,)
+    conn.cursor().execute("""DELETE FROM results WHERE report=?""", (report,))
+    conn.commit()
+
 def save_result(report, benchmark, value):
     conn.cursor().execute("""INSERT INTO results (report, benchmark, time)
             VALUES (?, ?, ?)""", (report, benchmark, value))

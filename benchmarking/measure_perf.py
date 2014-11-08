@@ -16,19 +16,22 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
         for e, time_list in zip(executables, times):
             skip = False
             for f in filters:
-                if f(e, b):
-                    skip = True
+                skip = f(e, b)
+                if isinstance(skip, float) or skip:
                     break
 
-            if skip:
+            if not isinstance(skip, float) and skip:
                 print "%s %s: skipped" % (e.name.rjust(15), b.ljust(35))
                 continue
 
-            start = time.time()
-            subprocess.check_call(e.args + [os.path.join(benchmark_dir, b)], stdout=open("/dev/null", 'w'))
-            elapsed = time.time() - start
+            if isinstance(skip, float):
+                elapsed = skip
+            else:
+                start = time.time()
+                subprocess.check_call(e.args + [os.path.join(benchmark_dir, b)], stdout=open("/dev/null", 'w'))
+                elapsed = time.time() - start
 
-            print "%s %s: % 4.1fs" % (e.name.rjust(15), b.ljust(35), elapsed),
+            print "%s %s: % 6.1fs" % (e.name.rjust(15), b.ljust(35), elapsed),
 
             time_list.append(elapsed)
 
@@ -42,7 +45,7 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
         for elapsed in time_list:
             t *= elapsed
         t **= (1.0 / len(time_list))
-        print "%s %s: % 4.1fs" % (e.name.rjust(15), "geomean".ljust(35), t)
+        print "%s %s: % 6.1fs" % (e.name.rjust(15), "geomean".ljust(35), t)
 
 
 class Executable(object):
@@ -68,14 +71,16 @@ def main():
     parser.add_argument("--run_pyston", dest="run_pyston", action="store_false")
     parser.add_argument("--run_cpython", dest="run_cpython", action="store_true")
     parser.add_argument("--save", dest="save_report", action="store", nargs="?", default=None, const="tmp")
-    parser.add_argument("--compare", dest="compare_to", action="store", nargs="?", default=None, const="tmp")
+    parser.add_argument("--compare", dest="compare_to", action="append", nargs="?", default=None, const="tmp")
     parser.add_argument("--clear", dest="clear", action="store", nargs="?", default=None, const="tmp")
     parser.add_argument("--skip_repeated", dest="skip_repeated", action="store_true")
     parser.add_argument("--save_by_commit", dest="save_by_commit", action="store_true")
+    parser.add_argument("--view", dest="view", action="store", nargs="?", default=None, const="last")
     args = parser.parse_args()
 
     if args.clear:
-        pass
+        model.clear_report(args.clear)
+        return
 
     executables = []
 
@@ -93,6 +98,8 @@ def main():
         executables.append(Executable(["python"], python_name))
     # if RUN_PYPY:
         # executables.append(Executable(["python"], "cpython 2.7"))
+
+    only_pyston = args.run_pyston and len(executables) == 1
 
     benchmarks = []
 
@@ -115,6 +122,14 @@ def main():
 
     git_rev = None
 
+    if args.view:
+        def view_filter(exe, benchmark):
+            v = model.get_result(args.view, benchmark)
+            if v is not None:
+                return v
+            return True
+        filters.append(view_filter)
+
     if args.submit:
         git_rev = git_rev or get_git_rev(args.pyston_dir)
         def submit_callback(exe, benchmark, elapsed):
@@ -130,6 +145,7 @@ def main():
         callbacks.append(submit_callback)
 
     if args.save_by_commit:
+        assert only_pyston
         git_rev = git_rev or get_git_rev(args.pyston_dir)
         def save_callback(exe, benchmark, elapsed):
             report_name = "%s_%s" % (exe.name, git_rev)
@@ -137,22 +153,29 @@ def main():
         callbacks.append(save_callback)
 
     if args.compare_to:
-        report_name = args.compare_to
-        print "Comparing to '%s'" % report_name
+        print "Comparing to '%s'" % args.compare_to
         def compare_callback(exe, benchmark, elapsed):
-            v = model.get_result(report_name, benchmark)
-            if v is None:
-                print "(no previous)",
-            else:
-                print "Previous: %.1f (%+0.1f%%)" % (v, (elapsed - v) / v * 100),
+            for report_name in args.compare_to:
+                v = model.get_result(report_name, benchmark)
+                if v is None:
+                    print "(no %s)" % report_name,
+                else:
+                    print "%s: %.1f (%+0.1f%%)" % (report_name, v, (elapsed - v) / v * 100),
         callbacks.append(compare_callback)
 
     if args.save_report:
-        report_name = args.save_report
-        print "Saving results as '%s'" % report_name
+        assert len(executables) == 1, "Can't save a run on multiple executables"
+
+        model.clear_report(args.save_report)
+        print "Saving results as '%s'" % args.save_report
         def save_report_callback(exe, benchmark, elapsed):
-            model.save_result(report_name, benchmark, elapsed)
+            model.save_result(args.save_report, benchmark, elapsed)
         callbacks.append(save_report_callback)
+
+    tmp_results = []
+    def save_last_callback(exe, benchmark, elapsed):
+        tmp_results.append((exe, benchmark, elapsed))
+    callbacks.append(save_last_callback)
 
     if args.skip_repeated:
         git_rev = git_rev or get_git_rev(args.pyston_dir)
@@ -163,7 +186,15 @@ def main():
             return False
         filters.append(repeated_filter)
 
-    run_tests(executables, benchmarks, filters, callbacks, args.pyston_dir)
+    try:
+        run_tests(executables, benchmarks, filters, callbacks, args.pyston_dir)
+    except KeyboardInterrupt:
+        print "Interrupted"
+    finally:
+        model.clear_report("last")
+        print "Saving results to 'last'"
+        for (exe, benchmark, elapsed) in tmp_results:
+            model.save_result("last", benchmark, elapsed)
 
 if __name__ == "__main__":
     main()
