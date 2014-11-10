@@ -68,13 +68,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--pyston_dir", dest="pyston_dir", action="store", default=None)
     parser.add_argument("--submit", dest="submit", action="store_true")
-    parser.add_argument("--run_pyston", dest="run_pyston", action="store_false")
-    parser.add_argument("--run_cpython", dest="run_cpython", action="store_true")
+    parser.add_argument("--no-run-pyston", dest="run_pyston", action="store_false", default=True)
+    parser.add_argument("--run-cpython", dest="run_cpython", action="store_true")
     parser.add_argument("--save", dest="save_report", action="store", nargs="?", default=None, const="tmp")
     parser.add_argument("--compare", dest="compare_to", action="append", nargs="?", default=None, const="tmp")
     parser.add_argument("--clear", dest="clear", action="store", nargs="?", default=None, const="tmp")
-    parser.add_argument("--skip_repeated", dest="skip_repeated", action="store_true")
-    parser.add_argument("--save_by_commit", dest="save_by_commit", action="store_true")
+    parser.add_argument("--skip-repeated", dest="skip_repeated", action="store_true")
+    parser.add_argument("--save-by-commit", dest="save_by_commit", action="store_true")
     parser.add_argument("--view", dest="view", action="store", nargs="?", default=None, const="last")
     args = parser.parse_args()
 
@@ -84,11 +84,13 @@ def main():
 
     executables = []
 
+    if args.pyston_dir is None:
+        args.pyston_dir = os.path.join(os.path.dirname(__file__), "../../pyston")
+
     if args.run_pyston:
-        if args.pyston_dir is None:
-            args.pyston_dir = os.path.join(os.path.dirname(__file__), "../../pyston")
         pyston_executable = os.path.join(args.pyston_dir, "src/pyston_release")
-        assert os.path.exists(pyston_executable)
+        if not args.view:
+            assert os.path.exists(pyston_executable)
         executables.append(Executable([pyston_executable, "-q"], "pyston"))
 
     if args.run_cpython:
@@ -131,16 +133,16 @@ def main():
         filters.append(view_filter)
 
     if args.submit:
-        git_rev = git_rev or get_git_rev(args.pyston_dir)
         def submit_callback(exe, benchmark, elapsed):
             benchmark = os.path.basename(benchmark)
 
             assert benchmark.endswith(".py")
             benchmark = benchmark[:-3]
 
-            commitid = git_rev
             if "cpython" in exe.name:
                 commitid = "default"
+            else:
+                commitid = get_git_rev(args.pyston_dir)
             codespeed_submit.submit(commitid=commitid, benchmark=benchmark, executable=exe.name, value=elapsed)
         callbacks.append(submit_callback)
 
@@ -166,7 +168,8 @@ def main():
     if args.save_report:
         assert len(executables) == 1, "Can't save a run on multiple executables"
 
-        model.clear_report(args.save_report)
+        if not args.skip_repeated:
+            model.clear_report(args.save_report)
         print "Saving results as '%s'" % args.save_report
         def save_report_callback(exe, benchmark, elapsed):
             model.save_result(args.save_report, benchmark, elapsed)
@@ -178,11 +181,15 @@ def main():
     callbacks.append(save_last_callback)
 
     if args.skip_repeated:
-        git_rev = git_rev or get_git_rev(args.pyston_dir)
+        if args.save_report:
+            skip_report_name = lambda exe: args.save_report
+        else:
+            git_rev = git_rev or get_git_rev(args.pyston_dir)
+            skip_report_name = lambda exe: "%s_%s" % (exe.name, git_rev)
         def repeated_filter(exe, benchmark):
-            v = model.get_result("%s_%s" % (exe.name, git_rev), benchmark)
+            v = model.get_result(skip_report_name(exe), benchmark)
             if v:
-                return True
+                return v
             return False
         filters.append(repeated_filter)
 
