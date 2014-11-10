@@ -45,7 +45,10 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
         for elapsed in time_list:
             t *= elapsed
         t **= (1.0 / len(time_list))
-        print "%s %s: % 6.1fs" % (e.name.rjust(15), "geomean".ljust(35), t)
+        print "%s %s: % 6.1fs" % (e.name.rjust(15), "(geomean)".ljust(35), t),
+        for cb in callbacks:
+            cb(e, "(geomean)", t)
+        print
 
 
 class Executable(object):
@@ -168,7 +171,7 @@ def main():
     if args.save_report:
         assert len(executables) == 1, "Can't save a run on multiple executables"
 
-        if not args.skip_repeated:
+        if not args.skip_repeated and args.save_report != args.view:
             model.clear_report(args.save_report)
         print "Saving results as '%s'" % args.save_report
         def save_report_callback(exe, benchmark, elapsed):
