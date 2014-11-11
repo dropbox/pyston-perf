@@ -139,8 +139,10 @@ def main():
         def submit_callback(exe, benchmark, elapsed):
             benchmark = os.path.basename(benchmark)
 
-            assert benchmark.endswith(".py")
-            benchmark = benchmark[:-3]
+            if benchmark.endswith(".py"):
+                benchmark = benchmark[:-3]
+            else:
+                assert benchmark == "(geomean)"
 
             if "cpython" in exe.name:
                 commitid = "default"

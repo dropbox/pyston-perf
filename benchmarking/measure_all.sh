@@ -23,6 +23,11 @@ if ($1 == "'$1'") {
 }'
 }
 
+function nextrev {
+# Only look at the first parent, using that as the official sequence:
+git rev-parse $1~
+}
+
 while true; do
     echo "Testing $CUR"
 
@@ -34,9 +39,13 @@ while true; do
     git checkout $CUR
     make clean
     make pyston_release || make pyston_release
-    python $BENCHMARKING_DIR/measure_perf.py --submit --save_by_commit --skip_repeated
+    python $BENCHMARKING_DIR/measure_perf.py --submit --save-by-commit --skip-repeated
 
     CUR=$(nextrev $CUR)
+    # CUR=$(nextrev $CUR)
+    # CUR=$(nextrev $CUR)
+    # CUR=$(nextrev $CUR)
+
     if [ -z "$CUR" ]; then
         break
     fi
