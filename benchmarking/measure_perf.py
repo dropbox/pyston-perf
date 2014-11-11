@@ -60,11 +60,12 @@ class Executable(object):
         self.args = args
         self.name = name
 
-def get_git_rev(src_dir):
-    p = subprocess.Popen(["git", "status", "--porcelain", "--untracked=no"], cwd=src_dir, stdout=subprocess.PIPE)
-    out, err = p.communicate()
-    assert not out, "Dirty working tree detected!"
-    assert p.poll() == 0
+def get_git_rev(src_dir, allow_dirty):
+    if not allow_dirty:
+        p = subprocess.Popen(["git", "status", "--porcelain", "--untracked=no"], cwd=src_dir, stdout=subprocess.PIPE)
+        out, err = p.communicate()
+        assert not out, "Dirty working tree detected!"
+        assert p.poll() == 0
 
     p = subprocess.Popen(["git", "rev-parse", "HEAD"], cwd=src_dir, stdout=subprocess.PIPE)
     out, err = p.communicate()
@@ -83,6 +84,7 @@ def main():
     parser.add_argument("--skip-repeated", dest="skip_repeated", action="store_true")
     parser.add_argument("--save-by-commit", dest="save_by_commit", action="store_true")
     parser.add_argument("--view", dest="view", action="store", nargs="?", default=None, const="last")
+    parser.add_argument("--allow-dirty", dest="allow_dirty", action="store_true")
     args = parser.parse_args()
 
     if args.clear:
@@ -151,13 +153,13 @@ def main():
             if "cpython" in exe.name:
                 commitid = "default"
             else:
-                commitid = get_git_rev(args.pyston_dir)
+                commitid = get_git_rev(args.pyston_dir, args.allow_dirty)
             codespeed_submit.submit(commitid=commitid, benchmark=benchmark, executable=exe.name, value=elapsed)
         callbacks.append(submit_callback)
 
     if args.save_by_commit:
         assert only_pyston
-        git_rev = git_rev or get_git_rev(args.pyston_dir)
+        git_rev = git_rev or get_git_rev(args.pyston_dir, args.allow_dirty)
         def save_callback(exe, benchmark, elapsed):
             report_name = "%s_%s" % (exe.name, git_rev)
             model.save_result(report_name, benchmark, elapsed)
@@ -193,7 +195,7 @@ def main():
         if args.save_report:
             skip_report_name = lambda exe: args.save_report
         else:
-            git_rev = git_rev or get_git_rev(args.pyston_dir)
+            git_rev = git_rev or get_git_rev(args.pyston_dir, args.allow_dirty)
             skip_report_name = lambda exe: "%s_%s" % (exe.name, git_rev)
         def repeated_filter(exe, benchmark):
             v = model.get_result(skip_report_name(exe), benchmark)

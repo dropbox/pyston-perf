@@ -40,9 +40,16 @@ while true; do
         fi
 
         git checkout $CUR
+
+        if git merge-base --is-ancestor HEAD 069d309; then
+            git cherry-pick --no-commit 4c7b796
+        fi
+
         make clean
         make pyston_release || make pyston_release
-        python $BENCHMARKING_DIR/measure_perf.py --submit --save-by-commit --skip-repeated
+        python $BENCHMARKING_DIR/measure_perf.py --submit --save-by-commit --skip-repeated --allow-dirty
+
+        git reset --hard
     fi
 
     CUR=$(nextrev $CUR)
