@@ -11,9 +11,10 @@ import model
 
 def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
     times = [[] for e in executables]
+    failed = [False for e in executables]
 
     for b in benchmarks:
-        for e, time_list in zip(executables, times):
+        for i, e in enumerate(executables):
             skip = False
             for f in filters:
                 skip = f(e, b)
@@ -26,25 +27,34 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
 
             if isinstance(skip, float):
                 elapsed = skip
+                code = 0
             else:
                 start = time.time()
 
                 args = e.args + [os.path.join(benchmark_dir, b)]
                 if b == "(calibration)":
                     args = ["python", os.path.join(benchmark_dir, "minibenchmarks/fannkuch_med.py")]
-                subprocess.check_call(args, stdout=open("/dev/null", 'w'))
+                code = subprocess.call(args, stdout=open("/dev/null", 'w'))
                 elapsed = time.time() - start
 
-            print "%s %s: % 6.1fs" % (e.name.rjust(15), b.ljust(35), elapsed),
+            if code != 0:
+                print "%s %s: failed" % (e.name.rjust(15), b.ljust(35)),
+                failed[i] = True
+            else:
+                print "%s %s: % 6.1fs" % (e.name.rjust(15), b.ljust(35), elapsed),
 
-            time_list.append(elapsed)
+                times[i].append(elapsed)
 
-            for cb in callbacks:
-                cb(e, b, elapsed)
+                for cb in callbacks:
+                    cb(e, b, elapsed)
 
             print
 
-    for e, time_list in zip(executables, times):
+    for i, e in enumerate(executables):
+        if failed[i]:
+            continue
+
+        time_list = times[i]
         t = 1
         for elapsed in time_list:
             t *= elapsed
