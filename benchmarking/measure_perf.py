@@ -28,7 +28,11 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
                 elapsed = skip
             else:
                 start = time.time()
-                subprocess.check_call(e.args + [os.path.join(benchmark_dir, b)], stdout=open("/dev/null", 'w'))
+
+                args = e.args + [os.path.join(benchmark_dir, b)]
+                if b == "(calibration)":
+                    args = ["python", os.path.join(benchmark_dir, "minibenchmarks/fannkuch_med.py")]
+                subprocess.check_call(args, stdout=open("/dev/null", 'w'))
                 elapsed = time.time() - start
 
             print "%s %s: % 6.1fs" % (e.name.rjust(15), b.ljust(35), elapsed),
@@ -106,7 +110,7 @@ def main():
 
     only_pyston = args.run_pyston and len(executables) == 1
 
-    benchmarks = []
+    benchmarks = ["(calibration)"]
 
     benchmarks += ["microbenchmarks/%s" % (s,) for s in [
         ]]
@@ -142,7 +146,7 @@ def main():
             if benchmark.endswith(".py"):
                 benchmark = benchmark[:-3]
             else:
-                assert benchmark == "(geomean)"
+                assert benchmark in ("(geomean)", "(calibration)")
 
             if "cpython" in exe.name:
                 commitid = "default"
