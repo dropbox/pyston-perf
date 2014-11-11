@@ -29,17 +29,21 @@ git rev-parse $1~
 }
 
 while true; do
-    echo "Testing $CUR"
+    if grep -q "$CUR" $BENCHMARKING_DIR/bad_revs.txt; then
+        echo "Skipping $CUR"
+    else
+        echo "Testing $CUR"
 
-    if [ -n "$(git status --porcelain --untracked=no)" ]; then
-        echo "Dirty working tree detected!"
-        exit 1
+        if [ -n "$(git status --porcelain --untracked=no)" ]; then
+            echo "Dirty working tree detected!"
+            exit 1
+        fi
+
+        git checkout $CUR
+        make clean
+        make pyston_release || make pyston_release
+        python $BENCHMARKING_DIR/measure_perf.py --submit --save-by-commit --skip-repeated
     fi
-
-    git checkout $CUR
-    make clean
-    make pyston_release || make pyston_release
-    python $BENCHMARKING_DIR/measure_perf.py --submit --save-by-commit --skip-repeated
 
     CUR=$(nextrev $CUR)
     # CUR=$(nextrev $CUR)
