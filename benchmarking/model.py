@@ -22,3 +22,7 @@ def get_result(report, benchmark):
     if val is not None:
         return val[0]
     return val
+
+def list_reports():
+    rows = conn.cursor().execute("""SELECT distinct(report) FROM results""").fetchall()
+    return [r[0] for r in rows]

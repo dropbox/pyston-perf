@@ -95,7 +95,13 @@ def main():
     parser.add_argument("--save-by-commit", dest="save_by_commit", action="store_true")
     parser.add_argument("--view", dest="view", action="store", nargs="?", default=None, const="last")
     parser.add_argument("--allow-dirty", dest="allow_dirty", action="store_true")
+    parser.add_argument("--list-reports", dest="list_reports", action="store_true")
     args = parser.parse_args()
+
+    if args.list_reports:
+        for report_name in model.list_reports():
+            print report_name
+        return
 
     if args.clear:
         model.clear_report(args.clear)
