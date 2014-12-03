@@ -2,7 +2,7 @@ set -eu
 
 BENCHMARKING_DIR=$PWD/$(dirname $0)
 
-cd ../../pyston/src
+cd ../../pyston
 
 CUR=$(git rev-parse HEAD)
 
@@ -45,8 +45,14 @@ while true; do
             git cherry-pick --no-commit 4c7b796
         fi
 
-        make clean
-        make pyston_release || make pyston_release
+        if [ -f src/Makefile ]; then
+            DIR=src
+        else
+            DIR=.
+        fi
+
+        make -C $DIR clean
+        make -C $DIR pyston_release || make -C $DIR pyston_release
         python $BENCHMARKING_DIR/measure_perf.py --submit --save-by-commit --skip-repeated --allow-dirty
 
         git reset --hard
