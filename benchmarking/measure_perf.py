@@ -116,7 +116,7 @@ def main():
     if args.run_pyston:
         pyston_executable = os.path.join(args.pyston_dir, os.path.join(args.pyston_executables_subdir, "pyston_release"))
         if not args.view:
-            assert os.path.exists(pyston_executable)
+            assert os.path.exists(pyston_executable), pyston_executable
         executables.append(Executable([pyston_executable, "-q"], "pyston"))
 
     if args.run_cpython:

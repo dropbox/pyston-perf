@@ -57,15 +57,13 @@ while true; do
         git checkout $CUR
 
         if git merge-base --is-ancestor HEAD 069d309; then
-            git cherry-pick --no-commit 4c7b796
+            if ! git cherry-pick --no-commit 4c7b796; then
+                git reset --hard
+            fi
         fi
 
         if git merge-base --is-ancestor HEAD 6fc7a17~ && git merge-base --is-ancestor 5e0b10a HEAD; then
             git cherry-pick --no-commit 6fc7a17
-        fi
-
-        if git merge-base --is-ancestor HEAD 069d309; then
-            git cherry-pick --no-commit 4c7b796
         fi
 
         if [ -f src/Makefile ]; then
@@ -76,7 +74,7 @@ while true; do
 
         make -C $DIR clean
         make -C $DIR pyston_release || make -C $DIR pyston_release
-        python $BENCHMARKING_DIR/measure_perf.py --submit --save-by-commit --skip-repeated --allow-dirty
+        python $BENCHMARKING_DIR/measure_perf.py --submit --save-by-commit --skip-repeated --allow-dirty --pyston-executables-subdir=$DIR
 
         git reset --hard
     fi
