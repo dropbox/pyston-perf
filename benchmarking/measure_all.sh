@@ -45,6 +45,14 @@ while true; do
             git cherry-pick --no-commit 4c7b796
         fi
 
+        if git merge-base --is-ancestor HEAD 6fc7a17~ && git merge-base --is-ancestor 5e0b10a HEAD; then
+            git cherry-pick --no-commit 6fc7a17
+        fi
+
+        if git merge-base --is-ancestor HEAD 069d309; then
+            git cherry-pick --no-commit 4c7b796
+        fi
+
         if [ -f src/Makefile ]; then
             DIR=src
         else

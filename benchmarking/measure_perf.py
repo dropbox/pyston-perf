@@ -96,6 +96,7 @@ def main():
     parser.add_argument("--view", dest="view", action="store", nargs="?", default=None, const="last")
     parser.add_argument("--allow-dirty", dest="allow_dirty", action="store_true")
     parser.add_argument("--list-reports", dest="list_reports", action="store_true")
+    parser.add_argument("--pyston-executables-subdir", dest="pyston_executables_subdir", action="store", default=".")
     args = parser.parse_args()
 
     if args.list_reports:
@@ -113,7 +114,7 @@ def main():
         args.pyston_dir = os.path.join(os.path.dirname(__file__), "../../pyston")
 
     if args.run_pyston:
-        pyston_executable = os.path.join(args.pyston_dir, "src/pyston_release")
+        pyston_executable = os.path.join(args.pyston_dir, os.path.join(args.pyston_executables_subdir, "pyston_release"))
         if not args.view:
             assert os.path.exists(pyston_executable)
         executables.append(Executable([pyston_executable, "-q"], "pyston"))
