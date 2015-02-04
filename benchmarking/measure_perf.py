@@ -33,7 +33,7 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
 
                 args = e.args + [os.path.join(benchmark_dir, b)]
                 if b == "(calibration)":
-                    args = ["python", os.path.join(benchmark_dir, "minibenchmarks/fannkuch_med.py")]
+                    args = ["python", os.path.join(benchmark_dir, "fannkuch_med.py")]
                 code = subprocess.call(args, stdout=open("/dev/null", 'w'))
                 elapsed = time.time() - start
 
@@ -131,11 +131,7 @@ def main():
 
     benchmarks = ["(calibration)"]
 
-    benchmarks += ["microbenchmarks/%s" % (s,) for s in [
-        ]]
-
-    benchmarks += ["minibenchmarks/%s" % (s,) for s in [
-        "fannkuch_med.py",
+    benchmarks += ["%s" % (s,) for s in [
         "nbody_med.py",
         "interp2.py",
         "raytrace.py",
@@ -144,6 +140,8 @@ def main():
         "chaos.py",
         "spectral_norm.py",
         ]]
+
+    benchmark_dir = os.path.join(os.path.dirname(__file__), "benchmark_suite")
 
     callbacks = []
     filters = []
@@ -222,7 +220,7 @@ def main():
         filters.append(repeated_filter)
 
     try:
-        run_tests(executables, benchmarks, filters, callbacks, args.pyston_dir)
+        run_tests(executables, benchmarks, filters, callbacks, benchmark_dir)
     except KeyboardInterrupt:
         print "Interrupted"
     finally:

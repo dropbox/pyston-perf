@@ -28,6 +28,21 @@ function nextrev {
 git rev-parse $1~
 }
 
+function nextrev {
+    C=master;
+    if [ $(git rev-parse $1) = $(git rev-parse $C) ]; then
+        return
+    fi
+    while true; do
+        N=$(git rev-parse $C~)
+        if [ "$N" = "$1" ]; then
+            echo $C
+            return
+        fi
+        C=$N
+    done
+}
+
 while true; do
     if grep -q "$CUR" $BENCHMARKING_DIR/bad_revs.txt; then
         echo "Skipping $CUR"
@@ -73,5 +88,9 @@ while true; do
 
     if [ -z "$CUR" ]; then
         break
+    fi
+
+    if [ "$CUR" = "3ef50b1a2068d80ffed131d3296a8c2552a79a01"]; then
+        make -C $DIR llvm_allclean
     fi
 done
