@@ -33,12 +33,15 @@ function nextrev {
     if [ $(git rev-parse $1) = $(git rev-parse $C) ]; then
         return
     fi
+    I=1;
     while true; do
         N=$(git rev-parse $C~)
         if [ "$N" = "$1" ]; then
+            echo >&2 "$I more revisions to test"
             echo $C
             return
         fi
+        I=$((I+1))
         C=$N
     done
 }
@@ -88,7 +91,7 @@ while true; do
         break
     fi
 
-    if [ "$CUR" = "3ef50b1a2068d80ffed131d3296a8c2552a79a01"]; then
+    if [ "$CUR" = "3ef50b1a2068d80ffed131d3296a8c2552a79a01" ]; then
         make -C $DIR llvm_allclean
     fi
 done

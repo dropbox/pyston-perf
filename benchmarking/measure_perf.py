@@ -2,6 +2,7 @@
 
 import argparse
 import commands
+import hashlib
 import os.path
 import subprocess
 import time
@@ -50,18 +51,25 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
 
             print
 
+    geomean_str = " ".join(sorted([os.path.basename(b) for b in benchmarks if b != "(calibration)"]))
+    geomean_name = "(geomean-%s)" % (hashlib.sha1(geomean_str).hexdigest()[:4])
+
     for i, e in enumerate(executables):
         if failed[i]:
             continue
 
         time_list = times[i]
         t = 1
-        for elapsed in time_list:
+        n = 0
+        for j, elapsed in enumerate(time_list):
+            if benchmarks[j] == "(calibration)":
+                continue
             t *= elapsed
-        t **= (1.0 / len(time_list))
-        print "%s %s: % 6.1fs" % (e.name.rjust(15), "(geomean)".ljust(35), t),
+            n += 1
+        t **= (1.0 / n)
+        print "%s %s: % 6.1fs" % (e.name.rjust(15), geomean_name.ljust(35), t),
         for cb in callbacks:
-            cb(e, "(geomean)", t)
+            cb(e, geomean_name, t)
         print
 
 
@@ -139,6 +147,7 @@ def main():
         "fannkuch.py",
         "chaos.py",
         "spectral_norm.py",
+        "fasta.py"
         ]]
 
     benchmark_dir = os.path.join(os.path.dirname(__file__), "benchmark_suite")
@@ -163,7 +172,7 @@ def main():
             if benchmark.endswith(".py"):
                 benchmark = benchmark[:-3]
             else:
-                assert benchmark in ("(geomean)", "(calibration)")
+                assert benchmark == "(calibration)" or benchmark.startswith("(geomean")
 
             if "cpython" in exe.name:
                 commitid = "default"
