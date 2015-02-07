@@ -75,7 +75,7 @@ while true; do
             DIR=.
         fi
 
-        make -C $DIR clean
+        make -C $DIR clean || true
         make -C $DIR pyston_release || make -C $DIR pyston_release
         python $BENCHMARKING_DIR/measure_perf.py --submit --save-by-commit --skip-repeated --allow-dirty --pyston-executables-subdir=$DIR
 

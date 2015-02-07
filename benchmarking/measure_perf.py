@@ -18,12 +18,12 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
         for i, e in enumerate(executables):
             skip = False
             for f in filters:
-                skip = f(e, b)
+                skip = f(e, b.filename)
                 if isinstance(skip, float) or skip:
                     break
 
             if not isinstance(skip, float) and skip:
-                print "%s %s: skipped" % (e.name.rjust(15), b.ljust(35))
+                print "%s %s: skipped" % (e.name.rjust(15), b.filename.ljust(35))
                 continue
 
             if isinstance(skip, float):
@@ -32,26 +32,26 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
             else:
                 start = time.time()
 
-                args = e.args + [os.path.join(benchmark_dir, b)]
-                if b == "(calibration)":
+                args = e.args + [os.path.join(benchmark_dir, b.filename)]
+                if b.filename == "(calibration)":
                     args = ["python", os.path.join(benchmark_dir, "fannkuch_med.py")]
                 code = subprocess.call(args, stdout=open("/dev/null", 'w'))
                 elapsed = time.time() - start
 
             if code != 0:
-                print "%s %s: failed" % (e.name.rjust(15), b.ljust(35)),
+                print "%s %s: failed" % (e.name.rjust(15), b.filename.ljust(35)),
                 failed[i] = True
             else:
-                print "%s %s: % 6.1fs" % (e.name.rjust(15), b.ljust(35), elapsed),
+                print "%s %s: % 6.1fs" % (e.name.rjust(15), b.filename.ljust(35), elapsed),
 
                 times[i].append(elapsed)
 
                 for cb in callbacks:
-                    cb(e, b, elapsed)
+                    cb(e, b.filename, elapsed)
 
             print
 
-    geomean_str = " ".join(sorted([os.path.basename(b) for b in benchmarks if b != "(calibration)"]))
+    geomean_str = " ".join(sorted([os.path.basename(b.filename) for b in benchmarks if b.include_in_average]))
     geomean_name = "(geomean-%s)" % (hashlib.sha1(geomean_str).hexdigest()[:4])
 
     for i, e in enumerate(executables):
@@ -62,7 +62,7 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
         t = 1
         n = 0
         for j, elapsed in enumerate(time_list):
-            if benchmarks[j] == "(calibration)":
+            if not benchmarks[j].include_in_average:
                 continue
             t *= elapsed
             n += 1
@@ -77,6 +77,11 @@ class Executable(object):
     def __init__(self, args, name):
         self.args = args
         self.name = name
+
+class Benchmark(object):
+    def __init__(self, filename, include_in_average):
+        self.filename = filename
+        self.include_in_average = include_in_average
 
 def get_git_rev(src_dir, allow_dirty):
     if not allow_dirty:
@@ -137,9 +142,7 @@ def main():
 
     only_pyston = args.run_pyston and len(executables) == 1
 
-    benchmarks = ["(calibration)"]
-
-    benchmarks += ["%s" % (s,) for s in [
+    averaged_benchmarks = ["%s" % (s,) for s in [
         "nbody_med.py",
         "interp2.py",
         "raytrace.py",
@@ -149,6 +152,12 @@ def main():
         "spectral_norm.py",
         "fasta.py"
         ]]
+
+    unaveraged_benchmarks = ["sre_parse_parse.py"]
+
+    benchmarks = ([Benchmark("(calibration)", False)] +
+            [Benchmark(b, True) for b in averaged_benchmarks] +
+            [Benchmark(b, False) for b in unaveraged_benchmarks])
 
     benchmark_dir = os.path.join(os.path.dirname(__file__), "benchmark_suite")
 
