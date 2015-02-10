@@ -153,7 +153,7 @@ def main():
         "fasta.py"
         ]]
 
-    unaveraged_benchmarks = ["sre_parse_parse.py"]
+    unaveraged_benchmarks = ["sre_parse_parse.py", "import_optparse_interp.py", "raytrace_small_interp.py"]
 
     benchmarks = ([Benchmark("(calibration)", False)] +
             [Benchmark(b, True) for b in averaged_benchmarks] +
