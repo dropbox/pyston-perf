@@ -1,10 +1,3 @@
-try:
-    import __pyston__
-    __pyston__.setOption("FORCE_INTERPRETER", 1)
-except ImportError:
-    pass
-
-
 # This file contains definitions for a simple raytracer.
 # Copyright Callum and Tony Garnock-Jones, 2008.
 # This file may be freely redistributed under the MIT license,
@@ -170,8 +163,9 @@ class PpmCanvas(object):
         self.bytes[i+2] = max(0, min(255, int(b * 255)))
 
     def save(self):
-        for c in self.bytes:
-            print c
+        pass
+        # for c in self.bytes:
+            # print c
         # with open(self.filenameBase + '.ppm', 'wb') as f:
             # f.write('P6 %d %d 255\n' % (self.width, self.height))
             # l = []
@@ -356,8 +350,8 @@ class CheckerboardSurface(object):
 
 def _main():
     Canvas = PpmCanvas
-    c = Canvas(8,6,'test_raytrace_tiny')
-    # c = Canvas(80,60,'test_raytrace_small')
+    # c = Canvas(8,6,'test_raytrace_tiny')
+    c = Canvas(80,60,'test_raytrace_small')
     # c = Canvas(320,240,'test_raytrace')
     #c = Canvas(640,480,'test_raytrace_big')
     s = Scene()

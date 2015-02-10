@@ -10,6 +10,8 @@ import time
 import codespeed_submit
 import model
 
+EXE_LEN = 20
+
 def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
     times = [[] for e in executables]
     failed = [False for e in executables]
@@ -23,7 +25,8 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
                     break
 
             if not isinstance(skip, float) and skip:
-                print "%s %s: skipped" % (e.name.rjust(15), b.filename.ljust(35))
+                # print "%s %s: skipped" % (e.name.rjust(EXE_LEN), b.filename.ljust(35))
+                failed[i] = True
                 continue
 
             if isinstance(skip, float):
@@ -39,10 +42,10 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
                 elapsed = time.time() - start
 
             if code != 0:
-                print "%s %s: failed" % (e.name.rjust(15), b.filename.ljust(35)),
+                print "%s %s: failed" % (e.name.rjust(EXE_LEN), b.filename.ljust(35)),
                 failed[i] = True
             else:
-                print "%s %s: % 6.1fs" % (e.name.rjust(15), b.filename.ljust(35), elapsed),
+                print "%s %s: % 6.1fs" % (e.name.rjust(EXE_LEN), b.filename.ljust(35), elapsed),
 
                 times[i].append(elapsed)
 
@@ -59,6 +62,7 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
             continue
 
         time_list = times[i]
+        assert len(time_list) == len(benchmarks)
         t = 1
         n = 0
         for j, elapsed in enumerate(time_list):
@@ -67,7 +71,7 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
             t *= elapsed
             n += 1
         t **= (1.0 / n)
-        print "%s %s: % 6.1fs" % (e.name.rjust(15), geomean_name.ljust(35), t),
+        print "%s %s: % 6.1fs" % (e.name.rjust(EXE_LEN), geomean_name.ljust(35), t),
         for cb in callbacks:
             cb(e, geomean_name, t)
         print
@@ -100,6 +104,7 @@ def main():
     parser.add_argument("--pyston_dir", dest="pyston_dir", action="store", default=None)
     parser.add_argument("--submit", dest="submit", action="store_true")
     parser.add_argument("--no-run-pyston", dest="run_pyston", action="store_false", default=True)
+    parser.add_argument("--run-pyston-interponly", dest="run_pyston_interponly", action="store_true", default=False)
     parser.add_argument("--run-cpython", dest="run_cpython", action="store_true")
     parser.add_argument("--save", dest="save_report", action="store", nargs="?", default=None, const="tmp")
     parser.add_argument("--compare", dest="compare_to", action="append", nargs="?", default=None, const="tmp")
@@ -122,6 +127,9 @@ def main():
         return
 
     executables = []
+
+    callbacks = []
+    filters = []
 
     if args.pyston_dir is None:
         args.pyston_dir = os.path.join(os.path.dirname(__file__), "../../pyston")
@@ -153,16 +161,32 @@ def main():
         "fasta.py"
         ]]
 
-    unaveraged_benchmarks = ["sre_parse_parse.py", "import_optparse_interp.py", "raytrace_small_interp.py"]
+    unaveraged_benchmarks = [
+            ]
+
+    compare_to_interp_benchmarks = [
+            "raytrace_small.py",
+            "sre_parse_parse.py",
+            ]
+
+    if args.run_pyston_interponly:
+        pyston_executable = os.path.join(args.pyston_dir, os.path.join(args.pyston_executables_subdir, "pyston_release"))
+        if not args.view:
+            assert os.path.exists(pyston_executable), pyston_executable
+        executables.append(Executable([pyston_executable, "-q", "-I"], "pyston_interponly"))
+        unaveraged_benchmarks += compare_to_interp_benchmarks
+
+        def interponly_filter(exe, benchmark):
+            if exe.name != "pyston_interponly":
+                return False
+            return benchmark not in compare_to_interp_benchmarks
+        filters.append(interponly_filter)
 
     benchmarks = ([Benchmark("(calibration)", False)] +
             [Benchmark(b, True) for b in averaged_benchmarks] +
             [Benchmark(b, False) for b in unaveraged_benchmarks])
 
     benchmark_dir = os.path.join(os.path.dirname(__file__), "benchmark_suite")
-
-    callbacks = []
-    filters = []
 
     git_rev = None
 

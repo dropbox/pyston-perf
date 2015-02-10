@@ -77,7 +77,7 @@ while true; do
 
         make -C $DIR clean || true
         make -C $DIR pyston_release || make -C $DIR pyston_release
-        python $BENCHMARKING_DIR/measure_perf.py --submit --save-by-commit --skip-repeated --allow-dirty --pyston-executables-subdir=$DIR
+        python $BENCHMARKING_DIR/measure_perf.py --submit --save-by-commit --skip-repeated --allow-dirty --run-pyston-interponly --pyston-executables-subdir=$DIR
 
         git reset --hard
     fi
