@@ -158,7 +158,10 @@ def main():
         "fannkuch.py",
         "chaos.py",
         "spectral_norm.py",
-        "fasta.py"
+        "fasta.py",
+        "pidigits.py",
+        "richards.py",
+        "deltablue.py"
         ]]
 
     unaveraged_benchmarks = [
