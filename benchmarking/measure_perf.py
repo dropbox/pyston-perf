@@ -151,7 +151,6 @@ def main():
     only_pyston = args.run_pyston and len(executables) == 1
 
     averaged_benchmarks = ["%s" % (s,) for s in [
-        "nbody_med.py",
         "interp2.py",
         "raytrace.py",
         "nbody.py",
