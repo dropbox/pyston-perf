@@ -138,7 +138,7 @@ def main():
         pyston_executable = os.path.join(args.pyston_dir, os.path.join(args.pyston_executables_subdir, "pyston_release"))
         if not args.view:
             assert os.path.exists(pyston_executable), pyston_executable
-        executables.append(Executable([pyston_executable, "-q"], "pyston"))
+        executables.append(Executable([pyston_executable, "-q", "-x"], "pyston"))
 
     if args.run_cpython:
         python_executable = "python"
@@ -151,12 +151,12 @@ def main():
     only_pyston = args.run_pyston and len(executables) == 1
 
     averaged_benchmarks = ["%s" % (s,) for s in [
+        "django_migrate.py",
         "interp2.py",
         "raytrace.py",
         "nbody.py",
         "fannkuch.py",
         "chaos.py",
-        "spectral_norm.py",
         "fasta.py",
         "pidigits.py",
         "richards.py",
@@ -167,6 +167,7 @@ def main():
             ]
 
     compare_to_interp_benchmarks = [
+            "django_migrate.py",
             "raytrace_small.py",
             "sre_parse_parse.py",
             ]
@@ -175,7 +176,7 @@ def main():
         pyston_executable = os.path.join(args.pyston_dir, os.path.join(args.pyston_executables_subdir, "pyston_release"))
         if not args.view:
             assert os.path.exists(pyston_executable), pyston_executable
-        executables.append(Executable([pyston_executable, "-q", "-I"], "pyston_interponly"))
+        executables.append(Executable([pyston_executable, "-q", "-x", "-I"], "pyston_interponly"))
         unaveraged_benchmarks += compare_to_interp_benchmarks
 
         def interponly_filter(exe, benchmark):
