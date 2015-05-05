@@ -52,12 +52,13 @@ while true; do
     else
         echo "Testing $CUR"
 
-        if [ -n "$(git status --porcelain --untracked=no)" ]; then
+        if [ -n "$(git status --porcelain --untracked=no --ignore-submodules)" ]; then
             echo "Dirty working tree detected!"
             exit 1
         fi
 
         git checkout $CUR
+        git submodule update
 
         if git merge-base --is-ancestor HEAD 069d309; then
             if ! git cherry-pick --no-commit 4c7b796; then
@@ -75,7 +76,7 @@ while true; do
             DIR=.
         fi
 
-        make -C $DIR clean || true
+        make -C $DIR clean >/dev/null 2>&1 || true
         make -C $DIR pyston_release || make -C $DIR pyston_release
         python $BENCHMARKING_DIR/measure_perf.py --submit --save-by-commit --skip-repeated --allow-dirty --run-pyston-interponly --pyston-executables-subdir=$DIR
 

@@ -42,7 +42,7 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
                 elapsed = time.time() - start
 
             if code != 0:
-                print "%s %s: failed" % (e.name.rjust(EXE_LEN), b.filename.ljust(35)),
+                print "%s %s: failed (code %d)" % (e.name.rjust(EXE_LEN), b.filename.ljust(35), code),
                 failed[i] = True
             else:
                 print "%s %s: % 6.1fs" % (e.name.rjust(EXE_LEN), b.filename.ljust(35), elapsed),
@@ -150,7 +150,7 @@ def main():
 
     only_pyston = args.run_pyston and len(executables) == 1
 
-    averaged_benchmarks = ["%s" % (s,) for s in [
+    averaged_benchmarks = [
         "interp2.py",
         "raytrace.py",
         "nbody.py",
@@ -160,15 +160,17 @@ def main():
         "fasta.py",
         "pidigits.py",
         "richards.py",
-        "deltablue.py"
-        ]]
+        "deltablue.py",
+        ]
 
     unaveraged_benchmarks = [
             ]
 
     compare_to_interp_benchmarks = [
-            "raytrace_small.py",
             "sre_parse_parse.py",
+            "raytrace_small.py",
+            "deltablue.py",
+            "richards.py",
             ]
 
     if args.run_pyston_interponly:
@@ -176,7 +178,7 @@ def main():
         if not args.view:
             assert os.path.exists(pyston_executable), pyston_executable
         executables.append(Executable([pyston_executable, "-q", "-I"], "pyston_interponly"))
-        unaveraged_benchmarks += compare_to_interp_benchmarks
+        unaveraged_benchmarks += set(compare_to_interp_benchmarks).difference(averaged_benchmarks)
 
         def interponly_filter(exe, benchmark):
             if exe.name != "pyston_interponly":
