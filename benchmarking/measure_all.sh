@@ -77,8 +77,13 @@ while true; do
         fi
 
         make -C $DIR clean >/dev/null 2>&1 || true
+
+        # I think we've reduced the number of times that we need to rerun cmake, but just to be
+        # sure (and to support older revisions), just touch it anyway.
+        touch $DIR/CMakeLists.txt
+
         make -C $DIR pyston_release || make -C $DIR pyston_release
-        python $BENCHMARKING_DIR/measure_perf.py --submit --save-by-commit --skip-repeated --allow-dirty --run-pyston-interponly --pyston-executables-subdir=$DIR
+        python $BENCHMARKING_DIR/measure_perf.py --submit --save-by-commit --skip-repeated --allow-dirty --run-pyston-interponly --pyston-executables-subdir=$DIR --run-twice
 
         git reset --hard
     fi

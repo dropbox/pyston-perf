@@ -33,13 +33,18 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
                 elapsed = skip
                 code = 0
             else:
-                subprocess.check_call(["rm", "-rf", os.path.expanduser("~/.cache/pyston")])
-
-                start = time.time()
+                if e.opts.get("clear_cache"):
+                    subprocess.check_call(["rm", "-rf", os.path.expanduser("~/.cache/pyston")])
 
                 args = e.args + [os.path.join(benchmark_dir, b.filename)]
                 if b.filename == "(calibration)":
                     args = ["python", os.path.join(benchmark_dir, "fannkuch_med.py")]
+
+                if e.opts.get("run_twice"):
+                    # Warmup:
+                    code = subprocess.call(args, stdout=open("/dev/null", 'w'))
+
+                start = time.time()
                 code = subprocess.call(args, stdout=open("/dev/null", 'w'))
                 elapsed = time.time() - start
 
@@ -80,9 +85,10 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
 
 
 class Executable(object):
-    def __init__(self, args, name):
+    def __init__(self, args, name, opts):
         self.args = args
         self.name = name
+        self.opts = opts
 
 class Benchmark(object):
     def __init__(self, filename, include_in_average):
@@ -107,6 +113,7 @@ def main():
     parser.add_argument("--submit", dest="submit", action="store_true")
     parser.add_argument("--no-run-pyston", dest="run_pyston", action="store_false", default=True)
     parser.add_argument("--run-pyston-interponly", dest="run_pyston_interponly", action="store_true", default=False)
+    parser.add_argument("--run-pyston-nocache", dest="run_pyston_nocache", action="store_true", default=False)
     parser.add_argument("--run-cpython", dest="run_cpython", action="store_true")
     parser.add_argument("--save", dest="save_report", action="store", nargs="?", default=None, const="tmp")
     parser.add_argument("--compare", dest="compare_to", action="append", nargs="?", default=None, const="tmp")
@@ -117,6 +124,7 @@ def main():
     parser.add_argument("--allow-dirty", dest="allow_dirty", action="store_true")
     parser.add_argument("--list-reports", dest="list_reports", action="store_true")
     parser.add_argument("--pyston-executables-subdir", dest="pyston_executables_subdir", action="store", default=".")
+    parser.add_argument("--run-twice", dest="run_twice", action="store_true")
     args = parser.parse_args()
 
     if args.list_reports:
@@ -136,18 +144,21 @@ def main():
     if args.pyston_dir is None:
         args.pyston_dir = os.path.join(os.path.dirname(__file__), "../../pyston")
 
+    pyston_executable = os.path.join(args.pyston_dir, os.path.join(args.pyston_executables_subdir, "pyston_release"))
+    if not args.view:
+        assert os.path.exists(pyston_executable), pyston_executable
+
     if args.run_pyston:
-        pyston_executable = os.path.join(args.pyston_dir, os.path.join(args.pyston_executables_subdir, "pyston_release"))
-        if not args.view:
-            assert os.path.exists(pyston_executable), pyston_executable
+        opts = {}
+        opts['run_twice'] = args.run_twice
         # TODO: need to figure out when to add -x or not.
-        executables.append(Executable([pyston_executable, "-q", "-x"], "pyston"))
+        executables.append(Executable([pyston_executable, "-q", "-x"], "pyston", opts))
 
     if args.run_cpython:
         python_executable = "python"
         python_name = commands.getoutput(python_executable +
                 " -c 'import sys; print \"cpython %d.%d\" % (sys.version_info.major, sys.version_info.minor)'")
-        executables.append(Executable(["python"], python_name))
+        executables.append(Executable(["python"], python_name, {}))
     # if RUN_PYPY:
         # executables.append(Executable(["python"], "cpython 2.7"))
 
@@ -177,13 +188,13 @@ def main():
             "richards.py",
             ]
 
-    if args.run_pyston_interponly:
-        pyston_executable = os.path.join(args.pyston_dir, os.path.join(args.pyston_executables_subdir, "pyston_release"))
-        if not args.view:
-            assert os.path.exists(pyston_executable), pyston_executable
-
+    if args.run_pyston_nocache:
         # TODO: need to figure out when to add -x or not.
-        executables.append(Executable([pyston_executable, "-q", "-x", "-I"], "pyston_interponly"))
+        executables.append(Executable([pyston_executable, "-q", "-x"], "pyston_nocache", {'clear_cache':True}))
+
+    if args.run_pyston_interponly:
+        # TODO: need to figure out when to add -x or not.
+        executables.append(Executable([pyston_executable, "-q", "-x", "-I"], "pyston_interponly", {}))
         unaveraged_benchmarks += set(compare_to_interp_benchmarks).difference(averaged_benchmarks)
 
         def interponly_filter(exe, benchmark):
