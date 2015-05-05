@@ -33,6 +33,8 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
                 elapsed = skip
                 code = 0
             else:
+                subprocess.check_call(["rm", "-rf", os.path.expanduser("~/.cache/pyston")])
+
                 start = time.time()
 
                 args = e.args + [os.path.join(benchmark_dir, b.filename)]
