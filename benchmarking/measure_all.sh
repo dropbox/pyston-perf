@@ -70,6 +70,12 @@ while true; do
             git cherry-pick --no-commit 6fc7a17
         fi
 
+        EXTRA_ARGS=
+
+        if git merge-base --is-ancestor HEAD 923e960~; then
+            EXTRA_ARGS="$EXTRA_ARGS --extra-jit-args=-x"
+        fi
+
         if [ -f src/Makefile ]; then
             DIR=src
         else
@@ -83,7 +89,7 @@ while true; do
         touch $DIR/CMakeLists.txt
 
         make -C $DIR pyston_release || make -C $DIR pyston_release
-        python $BENCHMARKING_DIR/measure_perf.py --submit --save-by-commit --skip-repeated --allow-dirty --run-pyston-interponly --pyston-executables-subdir=$DIR --run-twice
+        python $BENCHMARKING_DIR/measure_perf.py --submit --save-by-commit --skip-repeated --allow-dirty --run-pyston-interponly --pyston-executables-subdir=$DIR --run-times=3 $EXTRA_ARGS
 
         git reset --hard
     fi
