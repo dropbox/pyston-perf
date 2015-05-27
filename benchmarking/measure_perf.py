@@ -169,6 +169,7 @@ def main():
 
     averaged_benchmarks = [
         "django_migrate.py",
+        "django-template.py",
         "interp2.py",
         "raytrace.py",
         "nbody.py",
