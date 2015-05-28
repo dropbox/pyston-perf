@@ -47,6 +47,11 @@ function nextrev {
 }
 
 while true; do
+    if [ -e bench_env ]; then
+        echo Error: $PWD/bench_env exists, please remove it
+        exit 1
+    fi
+
     if grep -q "$CUR" $BENCHMARKING_DIR/bad_revs.txt; then
         echo "Skipping $CUR"
     else

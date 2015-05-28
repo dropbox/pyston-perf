@@ -45,9 +45,13 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
                     # Warmup:
                     code = subprocess.call(args, stdout=open("/dev/null", 'w'))
 
-                start = time.time()
-                code = subprocess.call(args, stdout=open("/dev/null", 'w'))
-                elapsed = time.time() - start
+                    if code:
+                        break
+
+                if code == 0:
+                    start = time.time()
+                    code = subprocess.call(args, stdout=open("/dev/null", 'w'))
+                    elapsed = time.time() - start
 
             if code != 0:
                 print "%s %s: failed (code %d)" % (e.name.rjust(EXE_LEN), b.filename.ljust(35), code),
