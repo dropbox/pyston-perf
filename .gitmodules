@@ -1,0 +1,3 @@
+[submodule "benchmarking/benchmark_suite/lib/virtualenv"]
+	path = benchmarking/benchmark_suite/lib/virtualenv
+	url = https://github.com/dropbox/virtualenv

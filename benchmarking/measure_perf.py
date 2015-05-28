@@ -125,6 +125,7 @@ def main():
     parser.add_argument("--allow-dirty", dest="allow_dirty", action="store_true")
     parser.add_argument("--list-reports", dest="list_reports", action="store_true")
     parser.add_argument("--pyston-executables-subdir", dest="pyston_executables_subdir", action="store", default=".")
+    parser.add_argument("--pyston-executable", dest="pyston_executable", action="store")
     parser.add_argument("--run-times", dest="run_times", action="store", default='1')
     parser.add_argument("--extra-jit-args", dest="extra_jit_args", action="append")
     args = parser.parse_args()
@@ -148,7 +149,10 @@ def main():
 
     extra_jit_args = args.extra_jit_args or []
 
-    pyston_executable = os.path.join(args.pyston_dir, os.path.join(args.pyston_executables_subdir, "pyston_release"))
+    pyston_executable = args.pyston_executable
+    if not pyston_executable:
+        pyston_executable = os.path.join(args.pyston_dir, os.path.join(args.pyston_executables_subdir, "pyston_release"))
+
     if not args.view:
         assert os.path.exists(pyston_executable), pyston_executable
 
@@ -169,6 +173,7 @@ def main():
 
     averaged_benchmarks = [
         "django_migrate.py",
+        "virtualenv_bench.py",
         "django-template.py",
         "interp2.py",
         "raytrace.py",
