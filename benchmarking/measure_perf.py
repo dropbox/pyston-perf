@@ -34,6 +34,8 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
                 elapsed = skip
                 code = 0
             else:
+                code = 0
+
                 if e.opts.get("clear_cache"):
                     subprocess.check_call(["rm", "-rf", os.path.expanduser("~/.cache/pyston")])
 
