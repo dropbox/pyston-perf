@@ -3,7 +3,7 @@ import sqlite3
 
 conn = sqlite3.connect(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data.db"))
 conn.cursor().execute("""CREATE TABLE IF NOT EXISTS results
-        (report text, benchmark text, time real)
+        (report text, benchmark text, time real, PRIMARY KEY (report, benchmark))
         """)
 
 def clear_report(report):
@@ -12,7 +12,7 @@ def clear_report(report):
     conn.commit()
 
 def save_result(report, benchmark, value):
-    conn.cursor().execute("""INSERT INTO results (report, benchmark, time)
+    conn.cursor().execute("""INSERT OR REPLACE INTO results (report, benchmark, time)
             VALUES (?, ?, ?)""", (report, benchmark, value))
     conn.commit()
 

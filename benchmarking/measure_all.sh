@@ -94,7 +94,7 @@ while true; do
         touch $DIR/CMakeLists.txt
 
         make -C $DIR pyston_release || make -C $DIR pyston_release
-        python $BENCHMARKING_DIR/measure_perf.py --submit --save-by-commit --skip-repeated --allow-dirty --run-pyston-interponly --pyston-executables-subdir=$DIR --run-times=3 $EXTRA_ARGS
+        python $BENCHMARKING_DIR/measure_perf.py --submit --save-by-commit --use-previous --allow-dirty --run-pyston-interponly --pyston-executables-subdir=$DIR --run-times=3 $EXTRA_ARGS
 
         git reset --hard
     fi

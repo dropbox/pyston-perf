@@ -4,6 +4,7 @@ import argparse
 import commands
 import hashlib
 import os.path
+import re
 import subprocess
 import sys
 import time
@@ -30,7 +31,8 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
                 failed[i] = True
                 continue
 
-            if isinstance(skip, float):
+            take_min = e.opts.get("take_min")
+            if isinstance(skip, float) and not take_min:
                 elapsed = skip
                 code = 0
             else:
@@ -41,17 +43,30 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
                 if b.filename == "(calibration)":
                     args = ["python", os.path.join(benchmark_dir, "fannkuch_med.py")]
 
+                if isinstance(skip, float):
+                    # print "Previous min was", skip
+                    elapsed = skip
+                else:
+                    elapsed = float('inf')
+
+                # Warmup:
                 for _ in xrange(e.opts.get('run_times', 1) - 1):
-                    # Warmup:
-                    code = subprocess.call(args, stdout=open("/dev/null", 'w'))
-
-                    if code:
-                        break
-
-                if code == 0:
                     start = time.time()
                     code = subprocess.call(args, stdout=open("/dev/null", 'w'))
-                    elapsed = time.time() - start
+                    if code == 0:
+                        _e = time.time() - start
+                        if take_min:
+                            # print _e
+                            elapsed = min(elapsed, _e)
+
+                start = time.time()
+                code = subprocess.call(args, stdout=open("/dev/null", 'w'))
+                _e = time.time() - start
+                if take_min:
+                    # print _e
+                    elapsed = min(elapsed, _e)
+                else:
+                    elapsed = _e
 
             if code != 0:
                 print "%s %s: failed (code %d)" % (e.name.rjust(EXE_LEN), b.filename.ljust(35), code),
@@ -123,7 +138,7 @@ def main():
     parser.add_argument("--save", dest="save_report", action="store", nargs="?", default=None, const="tmp")
     parser.add_argument("--compare", dest="compare_to", action="append", nargs="?", default=None, const="tmp")
     parser.add_argument("--clear", dest="clear", action="store", nargs="?", default=None, const="tmp")
-    parser.add_argument("--skip-repeated", dest="skip_repeated", action="store_true")
+    parser.add_argument("--use-previous", action="store_true")
     parser.add_argument("--save-by-commit", dest="save_by_commit", action="store_true")
     parser.add_argument("--view", dest="view", action="store", nargs="?", default=None, const="last")
     parser.add_argument("--allow-dirty", dest="allow_dirty", action="store_true")
@@ -132,6 +147,8 @@ def main():
     parser.add_argument("--pyston-executable", dest="pyston_executable", action="store")
     parser.add_argument("--run-times", dest="run_times", action="store", default='1')
     parser.add_argument("--extra-jit-args", dest="extra_jit_args", action="append")
+    parser.add_argument("--take-min", action="store_true")
+    parser.add_argument("--benchmark-filter", "--filter", dest="benchmark_filter", action="append")
     args = parser.parse_args()
 
     if args.list_reports:
@@ -160,8 +177,11 @@ def main():
     if not args.view:
         assert os.path.exists(pyston_executable), pyston_executable
 
+    global_opts = {}
+    global_opts['take_min'] = args.take_min
+
     if args.run_pyston:
-        opts = {}
+        opts = dict(global_opts)
         opts['run_times'] = int(args.run_times)
         executables.append(Executable([pyston_executable] + extra_jit_args, "pyston", opts))
 
@@ -169,7 +189,7 @@ def main():
         python_executable = "python"
         python_name = commands.getoutput(python_executable +
                 " -c 'import sys; print \"cpython %d.%d\" % (sys.version_info.major, sys.version_info.minor)'")
-        executables.append(Executable(["python"], python_name, {}))
+        executables.append(Executable(["python"], python_name, global_opts))
     # if RUN_PYPY:
         # executables.append(Executable(["python"], "cpython 2.7"))
 
@@ -202,10 +222,12 @@ def main():
             ]
 
     if args.run_pyston_nocache:
-        executables.append(Executable([pyston_executable] + extra_jit_args, "pyston_nocache", {'clear_cache':True}))
+        opts = dict(global_opts)
+        opts['clear_cache'] = True
+        executables.append(Executable([pyston_executable] + extra_jit_args, "pyston_nocache", opts))
 
     if args.run_pyston_interponly:
-        executables.append(Executable([pyston_executable, "-I"] + extra_jit_args, "pyston_interponly", {}))
+        executables.append(Executable([pyston_executable, "-I"] + extra_jit_args, "pyston_interponly", global_opts))
         unaveraged_benchmarks += set(compare_to_interp_benchmarks).difference(averaged_benchmarks)
 
         def interponly_filter(exe, benchmark):
@@ -213,6 +235,11 @@ def main():
                 return False
             return benchmark not in compare_to_interp_benchmarks
         filters.append(interponly_filter)
+
+    if args.benchmark_filter:
+        def benchmark_filter(exe, benchmark):
+            return not any([re.search(p, benchmark) for p in args.benchmark_filter])
+        filters.append(benchmark_filter)
 
     benchmarks = ([Benchmark("(calibration)", False)] +
             [Benchmark(b, True) for b in averaged_benchmarks] +
@@ -268,11 +295,14 @@ def main():
     if args.save_report:
         assert len(executables) == 1, "Can't save a run on multiple executables"
 
-        if not args.skip_repeated and args.save_report != args.view:
+        if not args.use_previous and args.save_report != args.view:
             model.clear_report(args.save_report)
         print "Saving results as '%s'" % args.save_report
         def save_report_callback(exe, benchmark, elapsed):
+            old_val = model.get_result(args.save_report, benchmark)
             model.save_result(args.save_report, benchmark, elapsed)
+            if old_val is not None and args.take_min:
+                print "(prev min: %.1fs)" % (old_val,),
         callbacks.append(save_report_callback)
 
     tmp_results = []
@@ -280,7 +310,7 @@ def main():
         tmp_results.append((exe, benchmark, elapsed))
     callbacks.append(save_last_callback)
 
-    if args.skip_repeated:
+    if args.use_previous:
         if args.save_report:
             skip_report_name = lambda exe: args.save_report
         else:
