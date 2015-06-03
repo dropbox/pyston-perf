@@ -71,6 +71,12 @@ while true; do
             fi
         fi
 
+        if git merge-base --is-ancestor HEAD c4c58d0d~; then
+            if ! git cherry-pick --no-commit c4c58d0d^2; then
+                git reset --hard
+            fi
+        fi
+
         if git merge-base --is-ancestor HEAD 6fc7a17~ && git merge-base --is-ancestor 5e0b10a HEAD; then
             git cherry-pick --no-commit 6fc7a17
         fi
