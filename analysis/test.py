@@ -44,7 +44,8 @@ def build(revision, src_dir):
         initialized.append(None)
 
     r = None
-    for build_type in ["pyston_release", "pyston_dbg"]:
+    # for build_type in ["pyston_release", "pyston_dbg"]:
+    for build_type in ["pyston_release"]:
         this_save_dir = os.path.join(save_dir, build_type)
         if not os.path.exists(this_save_dir):
             os.makedirs(this_save_dir)
@@ -68,10 +69,11 @@ def build(revision, src_dir):
     return r
 
 SRC_DIR = os.path.join(os.path.dirname(__file__), "../../pyston")
+BENCHMARKS_DIR = os.path.join(os.path.dirname(__file__), "../benchmarking/benchmark_suite")
 
 def run_test(revision, benchmark):
     fn = build(revision, SRC_DIR)
-    bm_fn = os.path.abspath(os.path.join(os.path.dirname(__file__), "../benchmarking/benchmark_suite", benchmark))
+    bm_fn = os.path.abspath(os.path.join(BENCHMARKS_DIR, benchmark))
 
     run_id = model.add_run(revision, benchmark)
     print "Starting run", run_id
@@ -116,11 +118,16 @@ def remove_run(run_id):
     model.delete_run(run_id)
     shutil.rmtree(get_run_save_dir(run_id))
 
-def compare(rev1, rev2, benchmark):
+def compareBenchmark(rev1, rev2, benchmark):
     rev1_pretty = rev1[:18]
     rev2_pretty = rev2[:18]
     rev1 = subprocess.check_output(["git", "rev-parse", rev1], cwd=SRC_DIR).strip()
     rev2 = subprocess.check_output(["git", "rev-parse", rev2], cwd=SRC_DIR).strip()
+
+    if '.' not in benchmark:
+        benchmark += ".py"
+    assert benchmark.endswith(".py")
+    assert os.path.exists(os.path.join(BENCHMARKS_DIR, benchmark))
 
     for r in model.get_runs(rev1, benchmark) + model.get_runs(rev2, benchmark):
         if not hasattr(r.md, "exitcode"):
@@ -145,6 +152,7 @@ def compare(rev1, rev2, benchmark):
         print "Commands:"
         print "a: do 2 more runs of %s" % rev1_pretty
         print "b: do 2 more runs of %s" % rev2_pretty
+        print "delete RUN_ID: delete run"
         print "p RUN_ID: go to perf report"
         cmd = raw_input("What would you like to do? ")
         try:
@@ -163,10 +171,21 @@ def compare(rev1, rev2, benchmark):
                 remove_run(r)
                 run_test(rev2, benchmark)
                 run_test(rev2, benchmark)
+            elif cmd == 'delete':
+                assert len(args) == 1
+                run_id = int(args[0])
+                remove_run(run_id)
             elif cmd == 'p':
                 assert len(args) == 1
                 run_id = int(args[0])
                 subprocess.check_call(["perf", "report", "-n", "-i", get_run_save_dir(run_id) + "/perf.data"])
+            elif cmd == 'pd':
+                assert len(args) == 2
+                run_id1 = int(args[0])
+                run_id2 = int(args[1])
+                subprocess.check_call("perf report -i %s/perf.data -n --no-call-graph | bash %s/tools/cumulate.sh > perf1.txt" % (get_run_save_dir(run_id1), SRC_DIR), shell=True)
+                subprocess.check_call("perf report -i %s/perf.data -n --no-call-graph | bash %s/tools/cumulate.sh > perf2.txt" % (get_run_save_dir(run_id2), SRC_DIR), shell=True)
+                subprocess.check_call(["python", "%s/tools/perf_diff.py" % SRC_DIR, "perf1.txt", "perf2.txt"])
             elif cmd == 'q':
                 break
             else:
@@ -195,12 +214,128 @@ def compare(rev1, rev2, benchmark):
     print "Avg time: %+.1f%%" % ((sum(elapsed2) / len(elapsed2) / sum(elapsed1) * len(elapsed1)- 1) * 100.0)
     print runs1, runs2
 
+BENCHMARKS = [
+    "django_migrate.py",
+    "virtualenv_bench.py",
+    "django-template.py",
+    "interp2.py",
+    "raytrace.py",
+    "nbody.py",
+    "fannkuch.py",
+    "chaos.py",
+    "fasta.py",
+    "pidigits.py",
+    "richards.py",
+    "deltablue.py",
+    ]
+
+
+def compareAll(rev1, rev2):
+    rev1_pretty = rev1[:18]
+    rev2_pretty = rev2[:18]
+    rev1 = subprocess.check_output(["git", "rev-parse", rev1], cwd=SRC_DIR).strip()
+    rev2 = subprocess.check_output(["git", "rev-parse", rev2], cwd=SRC_DIR).strip()
+
+    for r in model.get_runs(rev1) + model.get_runs(rev2):
+        if not hasattr(r.md, "exitcode"):
+            print "Removing unfinished benchmark run %d" % r.id
+            remove_run(r.id)
+
+    class Stats(object):
+        def __init__(self):
+            self.__results = []
+
+        def add(self, run):
+            if run.md.exitcode == 0:
+                self.__results.append(run.md.elapsed)
+
+        def count(self):
+            return len(self.__results)
+
+        def min(self):
+            return min(self.__results)
+
+        def format(self):
+            if not self.__results:
+                return "N/A"
+            return "%.1fs (%d)" % (self.min(), self.count())
+
+    stats1 = {b:Stats() for b in BENCHMARKS}
+    stats2 = {b:Stats() for b in BENCHMARKS}
+
+    while True:
+        for r in model.get_runs(rev1):
+            if r.benchmark in stats1:
+                stats1[r.benchmark].add(r)
+        for r in model.get_runs(rev2):
+            if r.benchmark in stats2:
+                stats2[r.benchmark].add(r)
+
+        print "% 20s % 19s: % 19s:" % ("", rev1_pretty, rev2_pretty)
+
+        prod1 = 1.0
+        prod2 = 1.0
+        prod_count = 0
+
+        for b in BENCHMARKS:
+            s1 = stats1[b]
+            s2 = stats2[b]
+            print "% 20s % 20s % 20s" % (b, s1.format(), s2.format()),
+            if s1.count() and s2.count():
+                prod1 *= s1.min()
+                prod2 *= s2.min()
+                prod_count += 1
+                diff = (s2.min() - s1.min()) / (s1.min())
+                print " %+0.1f%%" % (100.0 * diff),
+            print
+
+        if prod_count:
+            geo1 = prod1 ** (1.0 / prod_count)
+            geo2 = prod2 ** (1.0 / prod_count)
+            print "% 20s % 19.1fs % 19.1fs" % ("geomean", geo1, geo2),
+            diff = (geo2 - geo1) / (geo1)
+            print " %+0.1f%%" % (100.0 * diff)
+
+        print
+        print "Commands:"
+        print "a: do 2 more runs of %s" % rev1_pretty
+        print "b: do 2 more runs of %s" % rev2_pretty
+        print "d BENCH: detailed view of benchmark"
+        cmd = raw_input("What would you like to do? ")
+        try:
+            args = cmd.split()
+            cmd = args[0]
+            args = args[1:]
+            if cmd == 'a' or cmd == 'b':
+                assert not args
+                rev = rev1 if (cmd == 'a') else rev2
+                for b in BENCHMARKS:
+                    r = run_test(rev, b)
+                    remove_run(r)
+                    run_test(rev, b)
+                    run_test(rev, b)
+            elif cmd == 'd':
+                assert len(args) == 1
+                b = args[0]
+                compareBenchmark(rev1_pretty, rev2_pretty, b)
+            elif cmd == 'q':
+                break
+            else:
+                print "Unknown command %r" % cmd
+        except Exception:
+            traceback.print_exc()
+
+
+
 if __name__ == "__main__":
-    assert len(sys.argv) == 3
+    assert len(sys.argv) in (3,4)
     rev1 = sys.argv[1]
     rev2 = sys.argv[2]
 
-    compare(rev1, rev2, "raytrace.py")
+    if len(sys.argv) == 3:
+        compareAll(rev1, rev2)
+    else:
+        compareBenchmark(rev1, rev2, sys.argv[3])
 
 # print build(MASTER_REV, SRC_DIR)
 # run_test(MASTER_REV, "django-template.py")

@@ -45,12 +45,16 @@ def get_metadata(run_id, md_name):
         return None
     return r[0][0]
 
-def get_runs(revision, benchmark):
+def get_runs(revision, benchmark=None):
     assert len(revision) == 40, repr(revision)
     cursor = conn.cursor()
-    cursor.execute("""SELECT id FROM runs WHERE revision=? AND benchmark=?""",
-            (revision, benchmark))
-    return [Run(r[0]) for r in cursor.fetchall()]
+    if benchmark:
+        cursor.execute("""SELECT id, benchmark FROM runs WHERE revision=? AND benchmark=?""",
+                (revision, benchmark))
+    else:
+        cursor.execute("""SELECT id, benchmark FROM runs WHERE revision=?""",
+                (revision,))
+    return [Run(*r) for r in cursor.fetchall()]
 
 def delete_run(run_id):
     conn.cursor().execute("""DELETE FROM metadata WHERE run_id=?""", (run_id,))
@@ -76,8 +80,9 @@ class Metadata(object):
         return v
 
 class Run(object):
-    def __init__(self, id):
+    def __init__(self, id, benchmark):
         self.id = id
+        self.benchmark = benchmark
         self.md = Metadata(id)
 
     def format(self):
