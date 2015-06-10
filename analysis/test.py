@@ -1,9 +1,17 @@
 import os
 import shutil
 import subprocess
+import sys
 import time
+import traceback
 
 import model
+
+try:
+    import readline # this actually activates readline
+    readline # silence pyflakes
+except ImportError:
+    pass
 
 def get_build_save_dir(revision):
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "saved_builds", revision)
@@ -109,21 +117,64 @@ def remove_run(run_id):
     shutil.rmtree(get_run_save_dir(run_id))
 
 def compare(rev1, rev2, benchmark):
-    runs1 = model.get_runs(rev1, benchmark)
-    runs2 = model.get_runs(rev2, benchmark)
-    print runs1, runs2
-    assert runs1
-    assert runs2
-    if not runs1:
-        r = run_test(rev1, benchmark)
-        remove_run(r)
-        run_test(rev1, benchmark)
-        run_test(rev1, benchmark)
-    if not runs2:
-        r = run_test(rev2, benchmark)
-        remove_run(r)
-        run_test(rev2, benchmark)
-        run_test(rev2, benchmark)
+    rev1_pretty = rev1[:18]
+    rev2_pretty = rev2[:18]
+    rev1 = subprocess.check_output(["git", "rev-parse", rev1], cwd=SRC_DIR).strip()
+    rev2 = subprocess.check_output(["git", "rev-parse", rev2], cwd=SRC_DIR).strip()
+
+    for r in model.get_runs(rev1, benchmark) + model.get_runs(rev2, benchmark):
+        if not hasattr(r.md, "exitcode"):
+            print "Removing unfinished benchmark run %d" % r.id
+            remove_run(r.id)
+
+    while True:
+        runs1 = model.get_runs(rev1, benchmark)
+        runs2 = model.get_runs(rev2, benchmark)
+
+        fmt1 = [r.format() for r in runs1]
+        fmt2 = [r.format() for r in runs2]
+        while len(fmt1) < len(fmt2):
+            fmt1.append("")
+        while len(fmt1) > len(fmt2):
+            fmt2.append("")
+        print "% 19s: % 19s:" % (rev1_pretty, rev2_pretty)
+        for f1, f2 in zip(fmt1, fmt2):
+            print "% 20s % 20s" % (f1, f2)
+
+        print
+        print "Commands:"
+        print "a: do 2 more runs of %s" % rev1_pretty
+        print "b: do 2 more runs of %s" % rev2_pretty
+        print "p RUN_ID: go to perf report"
+        cmd = raw_input("What would you like to do? ")
+        try:
+            args = cmd.split()
+            cmd = args[0]
+            args = args[1:]
+            if cmd == 'a':
+                assert not args
+                r = run_test(rev1, benchmark)
+                remove_run(r)
+                run_test(rev1, benchmark)
+                run_test(rev1, benchmark)
+            elif cmd == 'b':
+                assert not args
+                r = run_test(rev2, benchmark)
+                remove_run(r)
+                run_test(rev2, benchmark)
+                run_test(rev2, benchmark)
+            elif cmd == 'p':
+                assert len(args) == 1
+                run_id = int(args[0])
+                subprocess.check_call(["perf", "report", "-n", "-i", get_run_save_dir(run_id) + "/perf.data"])
+            elif cmd == 'q':
+                break
+            else:
+                print "Unknown command %r" % cmd
+        except Exception:
+            traceback.print_exc()
+
+    return
 
     runs1 = model.get_runs(rev1, benchmark)
     runs2 = model.get_runs(rev2, benchmark)
@@ -144,11 +195,12 @@ def compare(rev1, rev2, benchmark):
     print "Avg time: %+.1f%%" % ((sum(elapsed2) / len(elapsed2) / sum(elapsed1) * len(elapsed1)- 1) * 100.0)
     print runs1, runs2
 
-MASTER_REV = "268f275f4cfe42f2562687107bf3c9ca5afd809b"
-PASS_BOXES_REV = "f2c705de01022d8dd965423753b71913cc2df900"
-PASS_BOXES_BASELINE_REV = "3a5b3e50e749ded943e7327dc3386c66486a8099"
+if __name__ == "__main__":
+    assert len(sys.argv) == 3
+    rev1 = sys.argv[1]
+    rev2 = sys.argv[2]
 
-compare(PASS_BOXES_BASELINE_REV, PASS_BOXES_REV, "raytrace.py")
+    compare(rev1, rev2, "raytrace.py")
 
 # print build(MASTER_REV, SRC_DIR)
 # run_test(MASTER_REV, "django-template.py")

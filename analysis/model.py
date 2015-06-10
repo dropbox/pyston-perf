@@ -3,7 +3,7 @@ import sqlite3
 
 conn = sqlite3.connect(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data.db"))
 conn.cursor().execute("""CREATE TABLE IF NOT EXISTS runs
-        (id INTEGER PRIMARY KEY,
+        (id INTEGER PRIMARY KEY AUTOINCREMENT,
          revision TEXT,
          benchmark TEXT,
          date TIMESTAMP)
@@ -46,13 +46,42 @@ def get_metadata(run_id, md_name):
     return r[0][0]
 
 def get_runs(revision, benchmark):
-    assert len(revision) == 40
+    assert len(revision) == 40, repr(revision)
     cursor = conn.cursor()
     cursor.execute("""SELECT id FROM runs WHERE revision=? AND benchmark=?""",
             (revision, benchmark))
-    return [r[0] for r in cursor.fetchall()]
+    return [Run(r[0]) for r in cursor.fetchall()]
 
 def delete_run(run_id):
     conn.cursor().execute("""DELETE FROM metadata WHERE run_id=?""", (run_id,))
     conn.cursor().execute("""DELETE FROM runs WHERE id=?""", (run_id,))
     conn.commit()
+
+class Metadata(object):
+    __CONVERSIONS = {
+        "exitcode": int,
+        "elapsed": float,
+    }
+
+    def __init__(self, run_id):
+        self.__run_id = run_id
+
+    def __getattr__(self, attr):
+        v = get_metadata(self.__run_id, attr)
+        if v is None:
+            raise AttributeError(attr)
+        # TODO: cache it?
+        if attr in self.__CONVERSIONS:
+            return self.__CONVERSIONS[attr](v)
+        return v
+
+class Run(object):
+    def __init__(self, id):
+        self.id = id
+        self.md = Metadata(id)
+
+    def format(self):
+        if self.md.exitcode:
+            return "\033[31m% 3d\033[0m" % self.id
+        else:
+            return "% 3d (%.1fs)" % (self.id, self.md.elapsed)
