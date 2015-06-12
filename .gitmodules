@@ -1,3 +1,10 @@
 [submodule "benchmarking/benchmark_suite/lib/virtualenv"]
 	path = benchmarking/benchmark_suite/lib/virtualenv
 	url = https://github.com/dropbox/virtualenv
+[submodule "benchmarking/benchmark_suite/lib/pyxl"]
+	path = benchmarking/benchmark_suite/lib/pyxl
+	url = https://github.com/dropbox/pyxl.git
+    ignore = untracked
+[submodule "benchmarking/benchmark_suite/lib/sqlalchemy"]
+	path = benchmarking/benchmark_suite/lib/sqlalchemy
+	url = https://github.com/zzzeek/sqlalchemy.git

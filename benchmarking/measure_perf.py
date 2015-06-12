@@ -198,9 +198,11 @@ def main():
     only_pyston = args.run_pyston and len(executables) == 1
 
     averaged_benchmarks = [
+        "django_template.py",
+        "pyxl_bench.py",
+        "sqlalchemy_imperative.py",
         "django_migrate.py",
         "virtualenv_bench.py",
-        "django-template.py",
         "interp2.py",
         "raytrace.py",
         "nbody.py",

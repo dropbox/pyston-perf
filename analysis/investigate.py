@@ -215,9 +215,11 @@ def compareBenchmark(rev1, rev2, benchmark):
     print runs1, runs2
 
 BENCHMARKS = [
+    "django_template.py",
+    "pyxl_bench.py",
+    "sqlalchemy_imperative.py",
     "django_migrate.py",
     "virtualenv_bench.py",
-    "django-template.py",
     "interp2.py",
     "raytrace.py",
     "nbody.py",
