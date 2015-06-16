@@ -281,7 +281,7 @@ def compareAll(rev1, rev2):
             if r.benchmark in stats2:
                 stats2[r.benchmark].add(r)
 
-        print "% 20s % 19s: % 19s:" % ("", rev1_pretty, rev2_pretty)
+        print "% 25s % 19s: % 19s:" % ("", rev1_pretty, rev2_pretty)
 
         prod1 = 1.0
         prod2 = 1.0
@@ -290,7 +290,7 @@ def compareAll(rev1, rev2):
         for b in BENCHMARKS:
             s1 = stats1[b]
             s2 = stats2[b]
-            print "% 20s % 20s % 20s" % (b, s1.format(), s2.format()),
+            print "% 25s % 20s % 20s" % (b, s1.format(), s2.format()),
             if s1.count() and s2.count():
                 prod1 *= s1.min()
                 prod2 *= s2.min()
@@ -302,7 +302,7 @@ def compareAll(rev1, rev2):
         if prod_count:
             geo1 = prod1 ** (1.0 / prod_count)
             geo2 = prod2 ** (1.0 / prod_count)
-            print "% 20s % 19.1fs % 19.1fs" % ("geomean", geo1, geo2),
+            print "% 25s % 19.1fs % 19.1fs" % ("geomean", geo1, geo2),
             diff = (geo2 - geo1) / (geo1)
             print " %+0.1f%%" % (100.0 * diff)
 
