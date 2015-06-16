@@ -59,7 +59,7 @@ def build(revision, src_dir):
 
         gotorev()
 
-        code = subprocess.call(["git", "merge-base", "--is-ancestor", "bafb715", "revision"])
+        code = subprocess.call(["git", "merge-base", "--is-ancestor", "bafb715", revision], cwd=src_dir)
         # If code==0, then this is past the change to move the build directory
         old_pyston_build_dir = (code!=0)
 
@@ -69,8 +69,8 @@ def build(revision, src_dir):
         if old_pyston_build_dir:
             build_dir = os.path.join(src_dir, "..", "pyston-build-" + build_type.split('_', 1)[1])
         else:
-            build_dir = os.path.join(src_dir, build_type.split('_', 1)[1].title())
-        assert os.path.exists(build_dir)
+            build_dir = os.path.join(src_dir, "build", build_type.split('_', 1)[1].title())
+        assert os.path.exists(build_dir), build_dir
         for d in ["lib_pyston", "from_cpython"]:
             shutil.copytree(os.path.join(build_dir, d), os.path.join(this_save_dir, d))
         shutil.copy(os.path.join(build_dir, "pyston"), dest_fn)
