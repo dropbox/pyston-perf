@@ -137,6 +137,7 @@ def main():
     parser.add_argument("--run-pyston-interponly", dest="run_pyston_interponly", action="store_true", default=False)
     parser.add_argument("--run-pyston-nocache", dest="run_pyston_nocache", action="store_true", default=False)
     parser.add_argument("--run-cpython", dest="run_cpython", action="store_true")
+    parser.add_argument("--run-pypy", action="store_true")
     parser.add_argument("--save", dest="save_report", action="store", nargs="?", default=None, const="tmp")
     parser.add_argument("--compare", dest="compare_to", action="append", nargs="?", default=None, const="tmp")
     parser.add_argument("--clear", dest="clear", action="store", nargs="?", default=None, const="tmp")
@@ -191,9 +192,14 @@ def main():
         python_executable = "python"
         python_name = commands.getoutput(python_executable +
                 " -c 'import sys; print \"cpython %d.%d\" % (sys.version_info.major, sys.version_info.minor)'")
-        executables.append(Executable(["python"], python_name, global_opts))
-    # if RUN_PYPY:
-        # executables.append(Executable(["python"], "cpython 2.7"))
+        executables.append(Executable([python_executable], python_name, global_opts))
+
+    if args.run_pypy:
+        pypy_executable = "pypy"
+        pypy_build = commands.getoutput(pypy_executable +
+                " -c 'import platform; print platform.python_build()[0]'")
+        pypy_name = "pypy %s" % pypy_build.split('+')[0]
+        executables.append(Executable([pypy_executable], pypy_name, global_opts))
 
     only_pyston = args.run_pyston and len(executables) == 1
 
@@ -270,18 +276,29 @@ def main():
             else:
                 assert benchmark == "(calibration)" or benchmark.startswith("(geomean")
 
-            if "cpython" in exe.name:
+            if "cpython" in exe.name.lower():
                 commitid = "default"
+            elif "pypy" in exe.name.lower():
+                commitid = pypy_build
             else:
                 commitid = get_git_rev(args.pyston_dir, args.allow_dirty)
             codespeed_submit.submit(commitid=commitid, benchmark=benchmark, executable=exe.name, value=elapsed)
         callbacks.append(submit_callback)
 
+    def report_name_for_exe(exe):
+        if "cpython" in exe.name.lower():
+            report_name = "cpython"
+        elif "pypy" in exe.name.lower():
+            report_name = exe.name.lower().replace(' ', '_')
+        else:
+            assert 'pyston' in exe.name.lower()
+            report_name = "%s_%s" % (exe.name, git_rev)
+        return report_name
+
     if args.save_by_commit:
-        assert only_pyston
         git_rev = git_rev or get_git_rev(args.pyston_dir, args.allow_dirty)
         def save_callback(exe, benchmark, elapsed):
-            report_name = "%s_%s" % (exe.name, git_rev)
+            report_name = report_name_for_exe(exe)
             model.save_result(report_name, benchmark, elapsed)
         callbacks.append(save_callback)
 
@@ -316,10 +333,11 @@ def main():
 
     if args.use_previous:
         if args.save_report:
+            assert only_pyston
             skip_report_name = lambda exe: args.save_report
         else:
             git_rev = git_rev or get_git_rev(args.pyston_dir, args.allow_dirty)
-            skip_report_name = lambda exe: "%s_%s" % (exe.name, git_rev)
+            skip_report_name = report_name_for_exe
         def repeated_filter(exe, benchmark):
             v = model.get_result(skip_report_name(exe), benchmark)
             if v:

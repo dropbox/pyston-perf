@@ -12,6 +12,8 @@ def _formdata(commitid, benchmark, executable, value):
 
     if "cpython" in executable.lower():
         project = "CPython"
+    elif "pypy" in executable.lower():
+        project = "PyPy"
     else:
         project = "Pyston"
 
