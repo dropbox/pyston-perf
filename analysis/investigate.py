@@ -228,17 +228,22 @@ BENCHMARKS = [
     "sqlalchemy_imperative.py",
     "django_migrate.py",
     "virtualenv_bench.py",
+    ]
+
+MICROBENCHMARKS = [
     "interp2.py",
     "raytrace.py",
     "nbody.py",
     "fannkuch.py",
-    "chaos.py",
+    # "chaos.py",
     "fasta.py",
     "pidigits.py",
     "richards.py",
     "deltablue.py",
+    "sre_compile_ubench.py",
     ]
 
+# BENCHMARKS += MICROBENCHMARKS
 
 def compareAll(rev1, rev2):
     rev1_pretty = rev1[:18]
@@ -270,10 +275,10 @@ def compareAll(rev1, rev2):
                 return "N/A"
             return "%.1fs (%d)" % (self.min(), self.count())
 
-    stats1 = {b:Stats() for b in BENCHMARKS}
-    stats2 = {b:Stats() for b in BENCHMARKS}
-
     while True:
+        stats1 = {b:Stats() for b in BENCHMARKS}
+        stats2 = {b:Stats() for b in BENCHMARKS}
+
         for r in model.get_runs(rev1):
             if r.benchmark in stats1:
                 stats1[r.benchmark].add(r)
@@ -316,14 +321,16 @@ def compareAll(rev1, rev2):
             args = cmd.split()
             cmd = args[0]
             args = args[1:]
-            if cmd == 'a' or cmd == 'b':
+            if cmd in ['a', 'b', 'A', 'B']:
                 assert not args
-                rev = rev1 if (cmd == 'a') else rev2
+                rev = rev1 if (cmd.lower() == 'a') else rev2
+                stats = stats1 if (cmd.lower() == 'a') else stats2
                 for b in BENCHMARKS:
-                    r = run_test(rev, b)
-                    remove_run(r)
-                    run_test(rev, b)
-                    run_test(rev, b)
+                    if cmd.islower() or stats[b].count() < 2:
+                        r = run_test(rev, b)
+                        remove_run(r)
+                        run_test(rev, b)
+                        run_test(rev, b)
             elif cmd == 'd':
                 assert len(args) == 1
                 b = args[0]
