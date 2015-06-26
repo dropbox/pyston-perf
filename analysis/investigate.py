@@ -26,55 +26,60 @@ def build(revision, src_dir):
 
     save_dir = get_build_save_dir(revision)
 
-    initialized = []
-    def gotorev():
-        if initialized:
-            return
+    on_new_rev = False
+    old_revision = []
 
+    def gotorev(rev):
         print "Don't have preexisting build; compiling..."
 
         status = subprocess.check_output(["git", "status", "--porcelain", "--untracked=no", "--ignore-submodules"], cwd=src_dir)
         assert not status, "Source directory is dirty!"
 
-        subprocess.check_call(["git", "checkout", revision], cwd=src_dir)
+        old_revision.append(subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=src_dir).strip())
+
+        subprocess.check_call(["git", "checkout", rev], cwd=src_dir)
         subprocess.check_call(["git", "submodule", "update"], cwd=src_dir)
 
         os.utime(os.path.join(src_dir, "CMakeLists.txt"), None)
 
-        initialized.append(None)
+    try:
+        r = None
+        # for build_type in ["pyston_release", "pyston_dbg"]:
+        for build_type in ["pyston_release"]:
+            this_save_dir = os.path.join(save_dir, build_type)
+            if not os.path.exists(this_save_dir):
+                os.makedirs(this_save_dir)
 
-    r = None
-    # for build_type in ["pyston_release", "pyston_dbg"]:
-    for build_type in ["pyston_release"]:
-        this_save_dir = os.path.join(save_dir, build_type)
-        if not os.path.exists(this_save_dir):
-            os.makedirs(this_save_dir)
+            dest_fn = os.path.join(this_save_dir, "pyston")
+            if build_type == "pyston_release":
+                r = dest_fn
 
-        dest_fn = os.path.join(this_save_dir, "pyston")
-        if build_type == "pyston_release":
-            r = dest_fn
+            if os.path.exists(dest_fn):
+                continue
 
-        if os.path.exists(dest_fn):
-            continue
+            if not on_new_rev:
+                on_new_rev = True
+                gotorev(revision)
 
-        gotorev()
+            code = subprocess.call(["git", "merge-base", "--is-ancestor", "bafb715", revision], cwd=src_dir)
+            # If code==0, then this is past the change to move the build directory
+            old_pyston_build_dir = (code!=0)
 
-        code = subprocess.call(["git", "merge-base", "--is-ancestor", "bafb715", revision], cwd=src_dir)
-        # If code==0, then this is past the change to move the build directory
-        old_pyston_build_dir = (code!=0)
+            subprocess.call(["make", build_type], cwd=src_dir)
+            subprocess.check_call(["make", build_type], cwd=src_dir)
 
-        subprocess.call(["make", build_type], cwd=src_dir)
-        subprocess.check_call(["make", build_type], cwd=src_dir)
-
-        if old_pyston_build_dir:
-            build_dir = os.path.join(src_dir, "..", "pyston-build-" + build_type.split('_', 1)[1])
-        else:
-            build_dir = os.path.join(src_dir, "build", build_type.split('_', 1)[1].title())
-        assert os.path.exists(build_dir), build_dir
-        for d in ["lib_pyston", "from_cpython"]:
-            shutil.copytree(os.path.join(build_dir, d), os.path.join(this_save_dir, d))
-        shutil.copy(os.path.join(build_dir, "pyston"), dest_fn)
-    return r
+            if old_pyston_build_dir:
+                build_dir = os.path.join(src_dir, "..", "pyston-build-" + build_type.split('_', 1)[1])
+            else:
+                build_dir = os.path.join(src_dir, "build", build_type.split('_', 1)[1].title())
+            assert os.path.exists(build_dir), build_dir
+            for d in ["lib_pyston", "from_cpython"]:
+                shutil.copytree(os.path.join(build_dir, d), os.path.join(this_save_dir, d))
+            shutil.copy(os.path.join(build_dir, "pyston"), dest_fn)
+        return r
+    finally:
+        if on_new_rev:
+            gotorev(old_revision[0])
 
 SRC_DIR = os.path.join(os.path.dirname(__file__), "../../pyston")
 BENCHMARKS_DIR = os.path.join(os.path.dirname(__file__), "../benchmarking/benchmark_suite")
@@ -187,6 +192,14 @@ def compareBenchmark(rev1, rev2, benchmark):
                 assert len(args) == 1
                 run_id = int(args[0])
                 subprocess.check_call(["perf", "report", "-n", "-i", get_run_save_dir(run_id) + "/perf.data"])
+            elif cmd == 'stderr':
+                assert len(args) == 1
+                run_id = int(args[0])
+                subprocess.check_call(["less", get_run_save_dir(run_id) + "/err.log"])
+            elif cmd == 'stdout':
+                assert len(args) == 1
+                run_id = int(args[0])
+                subprocess.check_call(["less", get_run_save_dir(run_id) + "/err.log"])
             elif cmd == 'pd':
                 assert len(args) == 2
                 run_id1 = int(args[0])
