@@ -238,7 +238,7 @@ def compareBenchmark(rev1, rev2, benchmark):
 BENCHMARKS = [
     "django_template.py",
     "pyxl_bench.py",
-    "sqlalchemy_imperative.py",
+    "sqlalchemy_imperative2.py",
     "django_migrate.py",
     "virtualenv_bench.py",
     ]

@@ -206,7 +206,7 @@ def main():
     averaged_benchmarks = [
         "django_template.py",
         "pyxl_bench.py",
-        "sqlalchemy_imperative.py",
+        "sqlalchemy_imperative2.py",
         "django_migrate.py",
         "virtualenv_bench.py",
         "interp2.py",
@@ -333,7 +333,6 @@ def main():
 
     if args.use_previous:
         if args.save_report:
-            assert only_pyston
             skip_report_name = lambda exe: args.save_report
         else:
             git_rev = git_rev or get_git_rev(args.pyston_dir, args.allow_dirty)
