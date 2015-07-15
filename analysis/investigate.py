@@ -78,7 +78,7 @@ def build(revision, src_dir):
             shutil.copy(os.path.join(build_dir, "pyston"), dest_fn)
         return r
     finally:
-        if on_new_rev:
+        if on_new_rev and old_revision:
             gotorev(old_revision[0])
 
 SRC_DIR = os.path.join(os.path.dirname(__file__), "../../pyston")
@@ -239,6 +239,9 @@ BENCHMARKS = [
     "django_template.py",
     "pyxl_bench.py",
     "sqlalchemy_imperative2.py",
+    ]
+
+UNAVERAGED_BENCHMARKS = [
     "django_migrate.py",
     "virtualenv_bench.py",
     ]

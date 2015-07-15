@@ -137,7 +137,7 @@ def main():
     parser.add_argument("--run-pyston-interponly", dest="run_pyston_interponly", action="store_true", default=False)
     parser.add_argument("--run-pyston-nocache", dest="run_pyston_nocache", action="store_true", default=False)
     parser.add_argument("--run-cpython", dest="run_cpython", action="store_true")
-    parser.add_argument("--run-pypy", action="store_true")
+    parser.add_argument("--run-pypy", action="store", nargs="?", default=None, const="pypy")
     parser.add_argument("--save", dest="save_report", action="store", nargs="?", default=None, const="tmp")
     parser.add_argument("--compare", dest="compare_to", action="append", nargs="?", default=None, const="tmp")
     parser.add_argument("--clear", dest="clear", action="store", nargs="?", default=None, const="tmp")
@@ -195,7 +195,7 @@ def main():
         executables.append(Executable([python_executable], python_name, global_opts))
 
     if args.run_pypy:
-        pypy_executable = "pypy"
+        pypy_executable = args.run_pypy
         pypy_build = commands.getoutput(pypy_executable +
                 " -c 'import platform; print platform.python_build()[0]'")
         pypy_name = "pypy %s" % pypy_build.split('+')[0]
@@ -207,17 +207,17 @@ def main():
         "django_template.py",
         "pyxl_bench.py",
         "sqlalchemy_imperative2.py",
-        "django_migrate.py",
-        "virtualenv_bench.py",
-        "interp2.py",
-        "raytrace.py",
-        "nbody.py",
-        "fannkuch.py",
-        "chaos.py",
-        "fasta.py",
-        "pidigits.py",
-        "richards.py",
-        "deltablue.py",
+        # "django_migrate.py",
+        # "virtualenv_bench.py",
+        # "interp2.py",
+        # "raytrace.py",
+        # "nbody.py",
+        # "fannkuch.py",
+        # "chaos.py",
+        # "fasta.py",
+        # "pidigits.py",
+        # "richards.py",
+        # "deltablue.py",
         ]
 
     unaveraged_benchmarks = [

@@ -1,4 +1,5 @@
 import os
+import pickle
 import subprocess
 import sys
 import time
@@ -20,11 +21,7 @@ CPYTHON_TIMES = {
     "sqlalchemy_imperative2.py": 2056,
 }
 
-if __name__ == "__main__":
-    pyston_exe = SRC_DIR + "/pyston_release"
-    assert os.path.exists(pyston_exe)
-
-    """
+def collect_stats():
     allstats = {}
 
     for b in BENCHMARKS:
@@ -37,7 +34,7 @@ if __name__ == "__main__":
         p = subprocess.Popen(run_args, stdout=open("/dev/null"), stderr=subprocess.PIPE)
         out, err = p.communicate()
         r = p.wait()
-        assert r == 0
+        assert r == 0, (out, err)
 
         stats = {}
         _, counter_str = err.split("Counters:")
@@ -49,12 +46,20 @@ if __name__ == "__main__":
 
         allstats[b] = stats
 
-    import pickle
-    with open("stats.pkl", "w") as f:
-        pickle.dump(allstats, f)
-    """
+    return allstats
 
-    import pickle
+if __name__ == "__main__":
+    pyston_exe = SRC_DIR + "/pyston_release"
+    assert os.path.exists(pyston_exe)
+
+    if subprocess.call(["grep", "-q", "STAT_TIMERS (1", os.path.join(SRC_DIR, "src/core/stats.h")]) == 1:
+        raise Exception("Stat timers do not seem to be turned on in the source")
+
+    if not os.path.exists("stats.pkl") or os.stat("stats.pkl").st_mtime <= os.stat(pyston_exe).st_mtime:
+        allstats = collect_stats()
+        with open("stats.pkl", "w") as f:
+            pickle.dump(allstats, f)
+
     allstats = pickle.load(open("stats.pkl"))
 
     categorizers = []
@@ -86,7 +91,7 @@ if __name__ == "__main__":
     categorizers.append(list_categorizer(["compileFunction"], "tiering overhead", 10))
     categorizers.append(list_categorizer(["in_interpreter", "main_toplevel"], "in interpreter", 20))
     categorizers.append(list_categorizer(["in_interpreter", "main_toplevel"], "tiering overhead", 10))
-    categorizers.append(list_categorizer(["in_jitted_code", "in_builtins"], "things that should be fast", 10))
+    categorizers.append(list_categorizer(["in_jitted_code", "in_builtins", "in_baseline_jitted_code"], "things that should be fast", 10))
     categorizers.append(list_categorizer(["rewriter", "createrewriter"], "rewriter", 20))
     categorizers.append(list_categorizer(["rewriter", "createrewriter"], "tiering overhead", 10))
     categorizers.append(list_categorizer(["typeNew"], "things that should be fast", 10))
@@ -149,6 +154,7 @@ if __name__ == "__main__":
         print "%30s" % '',
         for b in BENCHMARKS:
             print "% 25s" % b[:-3],
+        print "% 15s" % "(geomean)",
         print
         for (k, l) in results:
 
@@ -156,7 +162,13 @@ if __name__ == "__main__":
                 # k = k[len('us_timer_'):]
 
             print "%30s" % k,
+            cpython_product = 1.0
             for i, r in enumerate(l):
-                s = "%d (% 3s%%)" % (r/1000, r/10/CPYTHON_TIMES[BENCHMARKS[i]])
+                cpython_percent = r/10/CPYTHON_TIMES[BENCHMARKS[i]]
+                cpython_product *= cpython_percent
+                s = "%d (% 3s%%)" % (r/1000, cpython_percent)
                 print "% 25s" % s,
+
+            cpython_product **= (1.0 / len(l))
+            print "%14.0f%%" % cpython_product,
             print
