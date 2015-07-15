@@ -74,7 +74,7 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
                 print "%s %s: failed (code %d)" % (e.name.rjust(EXE_LEN), b.filename.ljust(35), code),
                 failed[i] = True
             else:
-                print "%s %s: % 6.1fs" % (e.name.rjust(EXE_LEN), b.filename.ljust(35), elapsed),
+                print "%s %s: % 6.2fs" % (e.name.rjust(EXE_LEN), b.filename.ljust(35), elapsed),
 
                 times[i].append(elapsed)
 
@@ -100,7 +100,7 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
             t *= elapsed
             n += 1
         t **= (1.0 / n)
-        print "%s %s: % 6.1fs" % (e.name.rjust(EXE_LEN), geomean_name.ljust(35), t),
+        print "%s %s: % 6.2fs" % (e.name.rjust(EXE_LEN), geomean_name.ljust(35), t),
         for cb in callbacks:
             cb(e, geomean_name, t)
         print
@@ -310,7 +310,7 @@ def main():
                 if v is None:
                     print "(no %s)" % report_name,
                 else:
-                    print "%s: %.1f (%+0.1f%%)" % (report_name, v, (elapsed - v) / v * 100),
+                    print "%s: %.2f (%+0.1f%%)" % (report_name, v, (elapsed - v) / v * 100),
         callbacks.append(compare_callback)
 
     if args.save_report:
@@ -323,7 +323,7 @@ def main():
             old_val = model.get_result(args.save_report, benchmark)
             model.save_result(args.save_report, benchmark, elapsed)
             if old_val is not None and args.take_min:
-                print "(prev min: %.1fs)" % (old_val,),
+                print "(prev min: %.2fs)" % (old_val,),
         callbacks.append(save_report_callback)
 
     tmp_results = []
