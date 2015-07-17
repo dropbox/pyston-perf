@@ -136,7 +136,7 @@ def main():
     parser.add_argument("--no-run-pyston", dest="run_pyston", action="store_false", default=True)
     parser.add_argument("--run-pyston-interponly", dest="run_pyston_interponly", action="store_true", default=False)
     parser.add_argument("--run-pyston-nocache", dest="run_pyston_nocache", action="store_true", default=False)
-    parser.add_argument("--run-cpython", dest="run_cpython", action="store_true")
+    parser.add_argument("--run-cpython", action="store", nargs="?", default=None, const="python")
     parser.add_argument("--run-pypy", action="store", nargs="?", default=None, const="pypy")
     parser.add_argument("--save", dest="save_report", action="store", nargs="?", default=None, const="tmp")
     parser.add_argument("--compare", dest="compare_to", action="append", nargs="?", default=None, const="tmp")
@@ -189,7 +189,7 @@ def main():
         executables.append(Executable([pyston_executable] + extra_jit_args, "pyston", opts))
 
     if args.run_cpython:
-        python_executable = "python"
+        python_executable = args.run_cpython
         python_name = commands.getoutput(python_executable +
                 " -c 'import sys; print \"cpython %d.%d\" % (sys.version_info.major, sys.version_info.minor)'")
         executables.append(Executable([python_executable], python_name, global_opts))
@@ -200,8 +200,6 @@ def main():
                 " -c 'import platform; print platform.python_build()[0]'")
         pypy_name = "pypy %s" % pypy_build.split('+')[0]
         executables.append(Executable([pypy_executable], pypy_name, global_opts))
-
-    only_pyston = args.run_pyston and len(executables) == 1
 
     averaged_benchmarks = [
         "django_template.py",
