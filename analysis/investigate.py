@@ -236,15 +236,19 @@ def compareBenchmark(rev1, rev2, benchmark):
     print runs1, runs2
 
 BENCHMARKS = [
-    "django_template.py",
+    "django_template2.py",
     "pyxl_bench.py",
     "sqlalchemy_imperative2.py",
     ]
 
 UNAVERAGED_BENCHMARKS = [
+    "django_template.py",
+    "django_lexing.py",
     "django_migrate.py",
     "virtualenv_bench.py",
     ]
+
+# BENCHMARKS += UNAVERAGED_BENCHMARKS
 
 MICROBENCHMARKS = [
     "interp2.py",
