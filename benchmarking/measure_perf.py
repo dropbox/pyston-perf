@@ -202,7 +202,7 @@ def main():
         executables.append(Executable([pypy_executable], pypy_name, global_opts))
 
     averaged_benchmarks = [
-        "django_template.py",
+        "django_template2.py",
         "pyxl_bench.py",
         "sqlalchemy_imperative2.py",
         # "django_migrate.py",
@@ -219,6 +219,7 @@ def main():
         ]
 
     unaveraged_benchmarks = [
+        "django_template.py",
             ]
 
     compare_to_interp_benchmarks = [
@@ -308,7 +309,7 @@ def main():
                 if v is None:
                     print "(no %s)" % report_name,
                 else:
-                    print "%s: %.2f (%+0.1f%%)" % (report_name, v, (elapsed - v) / v * 100),
+                    print "%s: %.2f (%s%%)" % (report_name, v, "{:5.1f}".format((elapsed - v) / v * 100)),
         callbacks.append(compare_callback)
 
     if args.save_report:
