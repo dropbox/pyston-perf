@@ -202,7 +202,7 @@ def main():
         executables.append(Executable([pypy_executable], pypy_name, global_opts))
 
     averaged_benchmarks = [
-        "django_template2.py",
+        "django_template3.py",
         "pyxl_bench.py",
         "sqlalchemy_imperative2.py",
         # "django_migrate.py",
@@ -219,6 +219,7 @@ def main():
         ]
 
     unaveraged_benchmarks = [
+        "django_template2.py",
         "django_template.py",
             ]
 

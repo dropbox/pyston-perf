@@ -236,12 +236,13 @@ def compareBenchmark(rev1, rev2, benchmark):
     print runs1, runs2
 
 BENCHMARKS = [
-    "django_template2.py",
+    "django_template3.py",
     "pyxl_bench.py",
     "sqlalchemy_imperative2.py",
     ]
 
 UNAVERAGED_BENCHMARKS = [
+    "django_template2.py",
     "django_template.py",
     "django_lexing.py",
     "django_migrate.py",
