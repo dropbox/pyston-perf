@@ -98,12 +98,12 @@ def run_test(revision, benchmark):
     print fn, bm_fn
     print "In %r" % save_dir
 
-    start = time.time()
     run_perf = True
-    args = [fn, "-ps", bm_fn]
+    args = [fn, "-s", bm_fn]
     if run_perf:
         args = ["perf", "record", "-g", "-o", "perf.data", "--"] + args
 
+    start = time.time()
     p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=save_dir)
     out, err = p.communicate()
     exitcode = p.wait()
