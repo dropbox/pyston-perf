@@ -142,14 +142,14 @@ def compareBenchmark(rev1, rev2, benchmark):
     assert benchmark.endswith(".py")
     assert os.path.exists(os.path.join(BENCHMARKS_DIR, benchmark))
 
-    for r in model.get_runs(rev1, benchmark) + model.get_runs(rev2, benchmark):
+    for r in get_runs(rev1, benchmark) + get_runs(rev2, benchmark):
         if not hasattr(r.md, "exitcode"):
             print "Removing unfinished benchmark run %d" % r.id
             remove_run(r.id)
 
     while True:
-        runs1 = model.get_runs(rev1, benchmark)
-        runs2 = model.get_runs(rev2, benchmark)
+        runs1 = get_runs(rev1, benchmark)
+        runs2 = get_runs(rev2, benchmark)
 
         fmt1 = [r.format() for r in runs1]
         fmt2 = [r.format() for r in runs2]
@@ -216,8 +216,8 @@ def compareBenchmark(rev1, rev2, benchmark):
 
     return
 
-    runs1 = model.get_runs(rev1, benchmark)
-    runs2 = model.get_runs(rev2, benchmark)
+    runs1 = get_runs(rev1, benchmark)
+    runs2 = get_runs(rev2, benchmark)
 
     elapsed1 = []
     elapsed2 = []
@@ -266,13 +266,24 @@ MICROBENCHMARKS = [
 
 # BENCHMARKS += MICROBENCHMARKS
 
+def get_runs(rev, benchmark=None):
+    raw_runs = model.get_runs(rev, benchmark)
+    rtn = []
+    for r in raw_runs:
+        save_dir = get_run_save_dir(r.id)
+        if not os.path.exists(save_dir):
+            model.delete_run(r.id)
+        else:
+            rtn.append(r)
+    return rtn
+
 def compareAll(rev1, rev2):
     rev1_pretty = rev1[:18]
     rev2_pretty = rev2[:18]
     rev1 = subprocess.check_output(["git", "rev-parse", rev1], cwd=SRC_DIR).strip()
     rev2 = subprocess.check_output(["git", "rev-parse", rev2], cwd=SRC_DIR).strip()
 
-    for r in model.get_runs(rev1) + model.get_runs(rev2):
+    for r in get_runs(rev1) + get_runs(rev2):
         if not hasattr(r.md, "exitcode"):
             print "Removing unfinished benchmark run %d" % r.id
             remove_run(r.id)
@@ -300,10 +311,10 @@ def compareAll(rev1, rev2):
         stats1 = {b:Stats() for b in BENCHMARKS}
         stats2 = {b:Stats() for b in BENCHMARKS}
 
-        for r in model.get_runs(rev1):
+        for r in get_runs(rev1):
             if r.benchmark in stats1:
                 stats1[r.benchmark].add(r)
-        for r in model.get_runs(rev2):
+        for r in get_runs(rev2):
             if r.benchmark in stats2:
                 stats2[r.benchmark].add(r)
 
