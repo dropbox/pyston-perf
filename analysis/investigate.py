@@ -7,6 +7,8 @@ import traceback
 
 import model
 
+CONFIGURATION = "pyston_release"
+
 try:
     import readline # this actually activates readline
     readline # silence pyflakes
@@ -44,14 +46,17 @@ def build(revision, src_dir):
 
     try:
         r = None
-        # for build_type in ["pyston_release", "pyston_dbg"]:
-        for build_type in ["pyston_release"]:
+
+        build_types = [CONFIGURATION]
+        # build_types = ["pyston_release", "pyston_dbg"]
+
+        for build_type in build_types:
             this_save_dir = os.path.join(save_dir, build_type)
             if not os.path.exists(this_save_dir):
                 os.makedirs(this_save_dir)
 
             dest_fn = os.path.join(this_save_dir, "pyston")
-            if build_type == "pyston_release":
+            if build_type == CONFIGURATION:
                 r = dest_fn
 
             if os.path.exists(dest_fn):
@@ -71,7 +76,11 @@ def build(revision, src_dir):
             if old_pyston_build_dir:
                 build_dir = os.path.join(src_dir, "..", "pyston-build-" + build_type.split('_', 1)[1])
             else:
-                build_dir = os.path.join(src_dir, "build", build_type.split('_', 1)[1].title())
+                build_names = {
+                        "pyston_release": "Release",
+                        "pyston_pgo": "Release-gcc-pgo",
+                        }
+                build_dir = os.path.join(src_dir, "build", build_names[build_type])
             assert os.path.exists(build_dir), build_dir
             for d in ["lib_pyston", "from_cpython"]:
                 shutil.copytree(os.path.join(build_dir, d), os.path.join(this_save_dir, d))
@@ -88,7 +97,7 @@ def run_test(revision, benchmark):
     fn = build(revision, SRC_DIR)
     bm_fn = os.path.abspath(os.path.join(BENCHMARKS_DIR, benchmark))
 
-    run_id = model.add_run(revision, benchmark)
+    run_id = model.add_run(revision, CONFIGURATION, benchmark)
     print "Starting run", run_id
 
     save_dir = get_run_save_dir(run_id)
@@ -267,7 +276,7 @@ MICROBENCHMARKS = [
 # BENCHMARKS += MICROBENCHMARKS
 
 def get_runs(rev, benchmark=None):
-    raw_runs = model.get_runs(rev, benchmark)
+    raw_runs = model.get_runs(rev, CONFIGURATION, benchmark)
     rtn = []
     for r in raw_runs:
         save_dir = get_run_save_dir(r.id)
@@ -377,6 +386,10 @@ def compareAll(rev1, rev2):
 
 
 if __name__ == "__main__":
+    if sys.argv[1] == '--pgo':
+        CONFIGURATION = "pyston_pgo"
+        del sys.argv[1]
+
     assert len(sys.argv) in (3,4)
     rev1 = sys.argv[1]
     rev2 = sys.argv[2]

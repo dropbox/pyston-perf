@@ -5,6 +5,7 @@ conn = sqlite3.connect(os.path.join(os.path.dirname(os.path.abspath(__file__)), 
 conn.cursor().execute("""CREATE TABLE IF NOT EXISTS runs
         (id INTEGER PRIMARY KEY AUTOINCREMENT,
          revision TEXT,
+         configuration TEXT,
          benchmark TEXT,
          date TIMESTAMP)
         """)
@@ -16,11 +17,11 @@ conn.cursor().execute("""CREATE TABLE IF NOT EXISTS metadata
         FOREIGN KEY (run_id) REFERENCES runs(id)
         )""")
 
-def add_run(revision, benchmark):
+def add_run(revision, configuration, benchmark):
     assert len(revision) == 40
     cursor = conn.cursor()
-    cursor.execute("""INSERT INTO runs(revision, benchmark, date)
-            VALUES (?, ?, CURRENT_TIMESTAMP)""", (revision, benchmark))
+    cursor.execute("""INSERT INTO runs(revision, configuration, benchmark, date)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)""", (revision, configuration, benchmark))
     id = cursor.lastrowid
     conn.commit()
     return id
@@ -45,15 +46,15 @@ def get_metadata(run_id, md_name):
         return None
     return r[0][0]
 
-def get_runs(revision, benchmark=None):
+def get_runs(revision, configuration, benchmark=None):
     assert len(revision) == 40, repr(revision)
     cursor = conn.cursor()
     if benchmark:
-        cursor.execute("""SELECT id, benchmark FROM runs WHERE revision=? AND benchmark=?""",
-                (revision, benchmark))
+        cursor.execute("""SELECT id, benchmark FROM runs WHERE revision=? AND configuration=? AND benchmark=?""",
+                (revision, configuration, benchmark))
     else:
-        cursor.execute("""SELECT id, benchmark FROM runs WHERE revision=?""",
-                (revision,))
+        cursor.execute("""SELECT id, benchmark FROM runs WHERE revision=? AND configuration=?""",
+                (revision, configuration))
     return [Run(*r) for r in cursor.fetchall()]
 
 def delete_run(run_id):
