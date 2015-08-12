@@ -32,8 +32,6 @@ def build(revision, src_dir):
     old_revision = []
 
     def gotorev(rev):
-        print "Don't have preexisting build; compiling..."
-
         status = subprocess.check_output(["git", "status", "--porcelain", "--untracked=no", "--ignore-submodules"], cwd=src_dir)
         assert not status, "Source directory is dirty!"
 
@@ -41,6 +39,7 @@ def build(revision, src_dir):
 
         subprocess.check_call(["git", "checkout", rev], cwd=src_dir)
         subprocess.check_call(["git", "submodule", "update"], cwd=src_dir)
+        print "doing `git submodule update`"
 
         os.utime(os.path.join(src_dir, "CMakeLists.txt"), None)
 
@@ -62,6 +61,8 @@ def build(revision, src_dir):
             if os.path.exists(dest_fn):
                 continue
 
+            print "Don't have preexisting build; compiling..."
+
             if not on_new_rev:
                 on_new_rev = True
                 gotorev(revision)
@@ -69,9 +70,6 @@ def build(revision, src_dir):
             code = subprocess.call(["git", "merge-base", "--is-ancestor", "bafb715", revision], cwd=src_dir)
             # If code==0, then this is past the change to move the build directory
             old_pyston_build_dir = (code!=0)
-
-            subprocess.call(["make", build_type], cwd=src_dir)
-            subprocess.check_call(["make", build_type], cwd=src_dir)
 
             if old_pyston_build_dir:
                 build_dir = os.path.join(src_dir, "..", "pyston-build-" + build_type.split('_', 1)[1])
@@ -81,6 +79,16 @@ def build(revision, src_dir):
                         "pyston_pgo": "Release-gcc-pgo",
                         }
                 build_dir = os.path.join(src_dir, "build", build_names[build_type])
+
+            if os.path.exists(build_dir):
+                # distutils doesn't always rebuild the pyston sharedmods when it needs to:
+                subprocess.check_call(["find", "-name", "*.pyston.so", "-delete"], cwd=build_dir)
+
+            code = subprocess.call(["make", build_type], cwd=src_dir)
+            if code:
+                print "Trying the build again"
+                subprocess.check_call(["make", build_type], cwd=src_dir)
+
             assert os.path.exists(build_dir), build_dir
             for d in ["lib_pyston", "from_cpython"]:
                 shutil.copytree(os.path.join(build_dir, d), os.path.join(this_save_dir, d))
@@ -88,6 +96,7 @@ def build(revision, src_dir):
         return r
     finally:
         if on_new_rev and old_revision:
+            print "Going back to", old_revision[0]
             gotorev(old_revision[0])
 
 SRC_DIR = os.path.join(os.path.dirname(__file__), "../../pyston")
@@ -104,13 +113,14 @@ def run_test(revision, benchmark):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-    print fn, bm_fn
     print "In %r" % save_dir
 
     run_perf = True
     args = [fn, "-s", bm_fn]
     if run_perf:
         args = ["perf", "record", "-g", "-o", "perf.data", "--"] + args
+
+    print args
 
     start = time.time()
     p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=save_dir)
@@ -139,6 +149,16 @@ def remove_run(run_id):
     print "Removing run", run_id
     model.delete_run(run_id)
     shutil.rmtree(get_run_save_dir(run_id))
+
+def do_three_runs(rev, benchmark):
+    # Forcibly removing the cache improves performance consistency:
+    cache_dir = os.path.expanduser("~/.cache/pyston")
+    if os.path.exists(cache_dir):
+        shutil.rmtree(cache_dir)
+    r = run_test(rev, benchmark)
+    remove_run(r)
+    run_test(rev, benchmark)
+    run_test(rev, benchmark)
 
 def compareBenchmark(rev1, rev2, benchmark):
     rev1_pretty = rev1[:18]
@@ -183,16 +203,10 @@ def compareBenchmark(rev1, rev2, benchmark):
             args = args[1:]
             if cmd == 'a':
                 assert not args
-                r = run_test(rev1, benchmark)
-                remove_run(r)
-                run_test(rev1, benchmark)
-                run_test(rev1, benchmark)
+                do_three_runs(rev1, benchmark)
             elif cmd == 'b':
                 assert not args
-                r = run_test(rev2, benchmark)
-                remove_run(r)
-                run_test(rev2, benchmark)
-                run_test(rev2, benchmark)
+                do_three_runs(rev2, benchmark)
             elif cmd == 'delete':
                 assert len(args) == 1
                 run_id = int(args[0])
@@ -248,9 +262,11 @@ BENCHMARKS = [
     "django_template3.py",
     "pyxl_bench.py",
     "sqlalchemy_imperative2.py",
+    # "django_template3_10x.py",
     ]
 
 UNAVERAGED_BENCHMARKS = [
+    "django_template3_10x.py",
     "django_template2.py",
     "django_template.py",
     "django_lexing.py",
@@ -287,6 +303,8 @@ def get_runs(rev, benchmark=None):
     return rtn
 
 def compareAll(rev1, rev2):
+    rev1_orig = rev1
+    rev2_orig = rev2
     rev1_pretty = rev1[:18]
     rev2_pretty = rev2[:18]
     rev1 = subprocess.check_output(["git", "rev-parse", rev1], cwd=SRC_DIR).strip()
@@ -368,14 +386,11 @@ def compareAll(rev1, rev2):
                 stats = stats1 if (cmd.lower() == 'a') else stats2
                 for b in BENCHMARKS:
                     if cmd.islower() or stats[b].count() < 2:
-                        r = run_test(rev, b)
-                        remove_run(r)
-                        run_test(rev, b)
-                        run_test(rev, b)
+                        do_three_runs(rev, b)
             elif cmd == 'd':
                 assert len(args) == 1
                 b = args[0]
-                compareBenchmark(rev1_pretty, rev2_pretty, b)
+                compareBenchmark(rev1_orig, rev2_orig, b)
             elif cmd == 'q':
                 break
             else:

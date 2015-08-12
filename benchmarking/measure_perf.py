@@ -1,5 +1,17 @@
 #!/usr/bin/env python
 
+"""
+python measure_perf.py --run-cpython --save=cpython --no-run-pyston --run-times=3 --use-previous --take-min
+python measure_perf.py --run-cpython=/home/kmod/pyston_related/cpython_2.7/python_noflags --save=cpython_noflags --no-run-pyston --run-times=3 --compare=cpython --take-min
+
+python measure_perf.py --run-pypy=/home/kmod/pyston_related/pypy-2.0.2/bin/pypy --save=pypy_2.0.2 --no-run-pyston --run-times=3 --use-previous --take-min
+python measure_perf.py --run-pypy=pypy --save=pypy_2.2.1 --no-run-pyston --run-times=3 --use-previous --take-min --compare=pypy_2.0.2
+python measure_perf.py --run-pypy=/home/kmod/pyston_related/pypy-2.6.0-linux64/bin/pypy --take-min --save=pypy_2.6.0 --no-run-pyston --run-times=3 --compare=cpython --compare=pypy_2.2.1 --use-previous --take-min
+
+make pyston_release
+python measure_perf.py --run-times=3 --save=meeting_XX_XX --compare=cpython --compare=pypy_2.6.0 --compare=pypy_2.2.1 --compare=pypy_2.0.2 --use-previous --take-min
+"""
+
 import argparse
 import commands
 import hashlib
@@ -152,6 +164,7 @@ def main():
     parser.add_argument("--extra-jit-args", dest="extra_jit_args", action="append")
     parser.add_argument("--take-min", action="store_true")
     parser.add_argument("--benchmark-filter", "--filter", dest="benchmark_filter", action="append")
+    parser.add_argument("--all-benchmarks", action="store_true")
     args = parser.parse_args()
 
     if args.list_reports:
@@ -198,29 +211,37 @@ def main():
         pypy_executable = args.run_pypy
         pypy_build = commands.getoutput(pypy_executable +
                 " -c 'import platform; print platform.python_build()[0]'")
-        pypy_name = "pypy %s" % pypy_build.split('+')[0]
+        if pypy_build == '295ee98b6928':
+            pypy_build = "2.6.0"
+        else:
+            pypy_build = pypy_build.split('+')[0]
+        pypy_name = "pypy %s" % pypy_build
         executables.append(Executable([pypy_executable], pypy_name, global_opts))
 
-    averaged_benchmarks = [
+    main_benchmarks = [
         "django_template3.py",
         "pyxl_bench.py",
         "sqlalchemy_imperative2.py",
-        # "django_migrate.py",
-        # "virtualenv_bench.py",
-        # "interp2.py",
-        # "raytrace.py",
-        # "nbody.py",
-        # "fannkuch.py",
-        # "chaos.py",
-        # "fasta.py",
-        # "pidigits.py",
-        # "richards.py",
-        # "deltablue.py",
         ]
 
-    unaveraged_benchmarks = [
+    perf_tracking_benchmarks = [
+        "django_migrate.py",
+        "virtualenv_bench.py",
+        "interp2.py",
+        "raytrace.py",
+        "nbody.py",
+        "fannkuch.py",
+        "chaos.py",
+        "fasta.py",
+        "pidigits.py",
+        "richards.py",
+        "deltablue.py",
         "django_template2.py",
         "django_template.py",
+    ]
+
+    unaveraged_benchmarks = [
+        "django_template3_10x.py",
             ]
 
     compare_to_interp_benchmarks = [
@@ -238,7 +259,7 @@ def main():
 
     if args.run_pyston_interponly:
         executables.append(Executable([pyston_executable, "-I"] + extra_jit_args, "pyston_interponly", global_opts))
-        unaveraged_benchmarks += set(compare_to_interp_benchmarks).difference(averaged_benchmarks)
+        unaveraged_benchmarks += set(compare_to_interp_benchmarks).difference(main_benchmarks)
 
         def interponly_filter(exe, benchmark):
             if exe.name != "pyston_interponly":
@@ -252,8 +273,11 @@ def main():
         filters.append(benchmark_filter)
 
     benchmarks = ([Benchmark("(calibration)", False)] +
-            [Benchmark(b, True) for b in averaged_benchmarks] +
+            [Benchmark(b, True) for b in main_benchmarks] +
             [Benchmark(b, False) for b in unaveraged_benchmarks])
+
+    if args.all_benchmarks:
+        benchmarks += [Benchmark(b, False) for b in perf_tracking_benchmarks]
 
     benchmark_dir = os.path.join(os.path.dirname(__file__), "benchmark_suite")
 
@@ -279,7 +303,7 @@ def main():
             if "cpython" in exe.name.lower():
                 commitid = "default"
             elif "pypy" in exe.name.lower():
-                commitid = pypy_build
+                commitid = "default"
             else:
                 commitid = get_git_rev(args.pyston_dir, args.allow_dirty)
             codespeed_submit.submit(commitid=commitid, benchmark=benchmark, executable=exe.name, value=elapsed)

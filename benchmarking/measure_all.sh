@@ -63,7 +63,7 @@ while true; do
         fi
 
         git checkout $CUR
-        git submodule update
+        git submodule update --init --recursive
 
         if git merge-base --is-ancestor HEAD 069d309; then
             if ! git cherry-pick --no-commit 4c7b796; then
