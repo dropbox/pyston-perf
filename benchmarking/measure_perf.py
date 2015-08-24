@@ -242,6 +242,8 @@ def main():
 
     unaveraged_benchmarks = [
         "django_template3_10x.py",
+        "pyxl_bench_10x.py",
+        "sqlalchemy_imperative2_10x.py",
             ]
 
     compare_to_interp_benchmarks = [
