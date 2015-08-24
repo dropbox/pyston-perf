@@ -50,9 +50,6 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
             else:
                 code = 0
 
-                if e.opts.get("clear_cache"):
-                    subprocess.check_call(["rm", "-rf", os.path.expanduser("~/.cache/pyston")])
-
                 args = e.args + [os.path.join(benchmark_dir, b.filename)]
                 if b.filename == "(calibration)":
                     args = ["python", os.path.join(benchmark_dir, "fannkuch_med.py")]
@@ -63,21 +60,30 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
                 else:
                     elapsed = float('inf')
 
+                def do_run():
+                    if e.opts.get("clear_cache"):
+                        subprocess.check_call(["rm", "-rf", os.path.expanduser("~/.cache/pyston")])
+                    print "running", args
+                    return subprocess.call(args, stdout=open("/dev/null", 'w'))
+
+                run_times = e.opts.get('run_times', 1)
+                if b.filename == "(calibration)":
+                    run_times = 1
                 # Warmup:
-                for _ in xrange(e.opts.get('run_times', 1) - 1):
+                for _ in xrange(run_times - 1):
                     start = time.time()
-                    code = subprocess.call(args, stdout=open("/dev/null", 'w'))
+                    code = do_run()
                     if code == 0:
                         _e = time.time() - start
                         if take_min:
-                            # print _e
+                            print _e
                             elapsed = min(elapsed, _e)
 
                 start = time.time()
-                code = subprocess.call(args, stdout=open("/dev/null", 'w'))
+                code = do_run()
                 _e = time.time() - start
                 if take_min:
-                    # print _e
+                    print _e
                     elapsed = min(elapsed, _e)
                 else:
                     elapsed = _e
@@ -195,11 +201,10 @@ def main():
 
     global_opts = {}
     global_opts['take_min'] = args.take_min
+    global_opts['run_times'] = int(args.run_times)
 
     if args.run_pyston:
-        opts = dict(global_opts)
-        opts['run_times'] = int(args.run_times)
-        executables.append(Executable([pyston_executable] + extra_jit_args, "pyston", opts))
+        executables.append(Executable([pyston_executable] + extra_jit_args, "pyston", global_opts))
 
     if args.run_cpython:
         python_executable = args.run_cpython
