@@ -63,7 +63,7 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
                 def do_run():
                     if e.opts.get("clear_cache"):
                         subprocess.check_call(["rm", "-rf", os.path.expanduser("~/.cache/pyston")])
-                    print "running", args
+                    # print "running", args
                     return subprocess.call(args, stdout=open("/dev/null", 'w'))
 
                 run_times = e.opts.get('run_times', 1)
@@ -76,14 +76,14 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
                     if code == 0:
                         _e = time.time() - start
                         if take_min:
-                            print _e
+                            # print _e
                             elapsed = min(elapsed, _e)
 
                 start = time.time()
                 code = do_run()
                 _e = time.time() - start
                 if take_min:
-                    print _e
+                    # print _e
                     elapsed = min(elapsed, _e)
                 else:
                     elapsed = _e
