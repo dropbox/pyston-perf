@@ -262,9 +262,11 @@ BENCHMARKS = [
     "django_template3.py",
     "pyxl_bench.py",
     "sqlalchemy_imperative2.py",
-    # "django_template3_10x.py",
-    # "pyxl_bench_10x.py",
-    # "sqlalchemy_imperative2_10x.py",
+    "pyxl_bench2.py",
+    "django_template3_10x.py",
+    "pyxl_bench_10x.py",
+    "sqlalchemy_imperative2_10x.py",
+    "pyxl_bench2_10x.py",
     ]
 
 UNAVERAGED_BENCHMARKS = [
