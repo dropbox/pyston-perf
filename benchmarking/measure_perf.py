@@ -166,6 +166,7 @@ def main():
     parser.add_argument("--list-reports", dest="list_reports", action="store_true")
     parser.add_argument("--pyston-executables-subdir", dest="pyston_executables_subdir", action="store", default=".")
     parser.add_argument("--pyston-executable", dest="pyston_executable", action="store")
+    parser.add_argument("--pyston-executable-name", action="store")
     parser.add_argument("--run-times", dest="run_times", action="store", default='1')
     parser.add_argument("--extra-jit-args", dest="extra_jit_args", action="append")
     parser.add_argument("--take-min", action="store_true")
@@ -199,12 +200,18 @@ def main():
     if not args.view:
         assert os.path.exists(pyston_executable), pyston_executable
 
+    pyston_executable_name = args.pyston_executable_name
+    if pyston_executable and not pyston_executable_name:
+        pyston_executable_name = os.path.basename(pyston_executable)
+        if pyston_executable_name == "pyston_release":
+            pyston_executable_name = "pyston"
+
     global_opts = {}
     global_opts['take_min'] = args.take_min
     global_opts['run_times'] = int(args.run_times)
 
     if args.run_pyston:
-        executables.append(Executable([pyston_executable] + extra_jit_args, "pyston", global_opts))
+        executables.append(Executable([pyston_executable] + extra_jit_args, pyston_executable_name, global_opts))
 
     if args.run_cpython:
         python_executable = args.run_cpython
@@ -224,9 +231,9 @@ def main():
         executables.append(Executable([pypy_executable], pypy_name, global_opts))
 
     main_benchmarks = [
-        "django_template3.py",
-        "pyxl_bench.py",
-        "sqlalchemy_imperative2.py",
+        "django_template3_10x.py",
+        "pyxl_bench_10x.py",
+        "sqlalchemy_imperative2_10x.py",
         ]
 
     perf_tracking_benchmarks = [
@@ -246,10 +253,12 @@ def main():
     ]
 
     unaveraged_benchmarks = [
-        "django_template3_10x.py",
-        "pyxl_bench_10x.py",
-        "sqlalchemy_imperative2_10x.py",
-            ]
+        "django_template3.py",
+        "pyxl_bench.py",
+        "pyxl_bench2.py",
+        "sqlalchemy_imperative2.py",
+        "pyxl_bench2_10x.py",
+    ]
 
     compare_to_interp_benchmarks = [
             "django_migrate.py",
