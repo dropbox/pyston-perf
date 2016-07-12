@@ -94,6 +94,7 @@ while true; do
         fi
 
         make -C $DIR clean >/dev/null 2>&1 || true
+        find $DIR -name '*.pyston.so' -delete
 
         # I think we've reduced the number of times that we need to rerun cmake, but just to be
         # sure (and to support older revisions), just touch it anyway.

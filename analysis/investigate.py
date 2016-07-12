@@ -196,6 +196,8 @@ def compareBenchmark(rev1, rev2, benchmark):
         print "b: do 2 more runs of %s" % rev2_pretty
         print "delete RUN_ID: delete run"
         print "p RUN_ID: go to perf report"
+        print "stdout RUN_ID: view the stdout of run.  [stderr also available]"
+        print "stderrdiff RUN1 RUN2: diff the stderrs."
         cmd = raw_input("What would you like to do? ")
         try:
             args = cmd.split()
@@ -223,6 +225,11 @@ def compareBenchmark(rev1, rev2, benchmark):
                 assert len(args) == 1
                 run_id = int(args[0])
                 subprocess.check_call(["less", get_run_save_dir(run_id) + "/err.log"])
+            elif cmd == 'stderrdiff':
+                assert len(args) == 2
+                run1_id = int(args[0])
+                run2_id = int(args[1])
+                subprocess.check_call(["vimdiff", get_run_save_dir(run1_id) + "/err.log", get_run_save_dir(run2_id) + "/err.log"])
             elif cmd == 'pd':
                 assert len(args) == 2
                 run_id1 = int(args[0])
@@ -263,8 +270,8 @@ BENCHMARKS = [
     "pyxl_bench.py",
     "sqlalchemy_imperative2.py",
     "pyxl_bench2.py",
-    "django_template3_10x.py",
     "pyxl_bench_10x.py",
+    "django_template3_10x.py",
     "sqlalchemy_imperative2_10x.py",
     "pyxl_bench2_10x.py",
     ]
