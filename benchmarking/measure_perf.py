@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
 """
-python measure_perf.py --run-cpython --save=cpython --no-run-pyston --run-times=3 --use-previous --take-min
+python measure_perf.py --run-cpython --save=cpython --no-run-pyston --run-times=3 --use-previous --take-min --submit
 python measure_perf.py --run-cpython=/home/kmod/pyston_related/cpython_2.7/python_noflags --save=cpython_noflags --no-run-pyston --run-times=3 --compare=cpython --take-min
 
 python measure_perf.py --run-pypy=/home/kmod/pyston_related/pypy-2.0.2/bin/pypy --save=pypy_2.0.2 --no-run-pyston --run-times=3 --use-previous --take-min
 python measure_perf.py --run-pypy=pypy --save=pypy_2.2.1 --no-run-pyston --run-times=3 --use-previous --take-min --compare=pypy_2.0.2
 python measure_perf.py --run-pypy=/home/kmod/pyston_related/pypy-2.6.0-linux64/bin/pypy --take-min --save=pypy_2.6.0 --no-run-pyston --run-times=3 --compare=cpython --compare=pypy_2.2.1 --use-previous --take-min
+python measure_perf.py --run-pypy=/home/kmod/pyston_related/pypy2-v5.3.1-linux64/bin/pypy --save=pypy_5.3.1 --no-run-pyston --run-times=3 --use-previous --take-min --submit
 
 make pyston_release
 python measure_perf.py --run-times=3 --save=meeting_XX_XX --compare=cpython --compare=pypy_2.6.0 --compare=pypy_2.2.1 --compare=pypy_2.0.2 --use-previous --take-min
@@ -27,7 +28,7 @@ import model
 EXE_LEN = 20
 
 def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
-    times = [[] for e in executables]
+    # times = [[] for e in executables]
     failed = [False for e in executables]
 
     for b in benchmarks:
@@ -35,17 +36,18 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
             skip = False
             for f in filters:
                 skip = f(e, b.filename)
-                if isinstance(skip, float) or skip:
+                assert not isinstance(skip, float), "%r needs to be converted" % f
+                if skip:
                     break
 
-            if not isinstance(skip, float) and skip:
+            if not isinstance(skip, tuple) and skip:
                 # print "%s %s: skipped" % (e.name.rjust(EXE_LEN), b.filename.ljust(35))
                 failed[i] = True
                 continue
 
             take_min = e.opts.get("take_min")
             if isinstance(skip, float) and not take_min:
-                elapsed = skip
+                elapsed, size = skip
                 code = 0
             else:
                 code = 0
@@ -56,15 +58,21 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
 
                 if isinstance(skip, float):
                     # print "Previous min was", skip
-                    elapsed = skip
+                    elapsed, size = skip
                 else:
-                    elapsed = float('inf')
+                    elapsed = size = float('inf')
 
                 def do_run():
                     if e.opts.get("clear_cache"):
                         subprocess.check_call(["rm", "-rf", os.path.expanduser("~/.cache/pyston")])
                     # print "running", args
-                    return subprocess.call(args, stdout=open("/dev/null", 'w'))
+                    p = subprocess.Popen(["time", "-v"] + args, stdout=open("/dev/null", 'w'), stderr=subprocess.PIPE)
+                    out, err = p.communicate()
+                    assert not out
+                    code = p.wait()
+                    size = int(re.search("Maximum resident set size .*: (\\d+)", err).group(1))
+                    size = size / 1024.0 # Should this be 1000?
+                    return code, size
 
                 run_times = e.opts.get('run_times', 1)
                 if b.filename == "(calibration)":
@@ -72,35 +80,39 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
                 # Warmup:
                 for _ in xrange(run_times - 1):
                     start = time.time()
-                    code = do_run()
+                    code, _size = do_run()
                     if code == 0:
                         _e = time.time() - start
                         if take_min:
                             # print _e
                             elapsed = min(elapsed, _e)
+                            size = min(size, _size)
 
                 start = time.time()
-                code = do_run()
+                code, _size = do_run()
                 _e = time.time() - start
                 if take_min:
                     # print _e
                     elapsed = min(elapsed, _e)
+                    size = min(size, _size)
                 else:
                     elapsed = _e
+                    size = _size
 
             if code != 0:
                 print "%s %s: failed (code %d)" % (e.name.rjust(EXE_LEN), b.filename.ljust(35), code),
                 failed[i] = True
             else:
-                print "%s %s: % 6.2fs" % (e.name.rjust(EXE_LEN), b.filename.ljust(35), elapsed),
+                print "%s %s: % 6.2fs (%2.1fMB)" % (e.name.rjust(EXE_LEN), b.filename.ljust(35), elapsed, size),
 
-                times[i].append(elapsed)
+                # times[i].append(elapsed)
 
                 for cb in callbacks:
-                    cb(e, b.filename, elapsed)
+                    cb(e, b.filename, elapsed, size)
 
             print
 
+    '''
     geomean_str = " ".join(sorted([os.path.basename(b.filename) for b in benchmarks if b.include_in_average]))
     geomean_name = "(geomean-%s)" % (hashlib.sha1(geomean_str).hexdigest()[:4])
 
@@ -122,6 +134,7 @@ def run_tests(executables, benchmarks, filters, callbacks, benchmark_dir):
         for cb in callbacks:
             cb(e, geomean_name, t)
         print
+    '''
 
 
 class Executable(object):
@@ -222,11 +235,7 @@ def main():
     if args.run_pypy:
         pypy_executable = args.run_pypy
         pypy_build = commands.getoutput(pypy_executable +
-                " -c 'import platform; print platform.python_build()[0]'")
-        if pypy_build == '295ee98b6928':
-            pypy_build = "2.6.0"
-        else:
-            pypy_build = pypy_build.split('+')[0]
+                """ -c 'import sys; print "%s.%s.%s" % sys.pypy_version_info[:3]'""")
         pypy_name = "pypy %s" % pypy_build
         executables.append(Executable([pypy_executable], pypy_name, global_opts))
 
@@ -308,7 +317,7 @@ def main():
         filters.append(view_filter)
 
     if args.submit:
-        def submit_callback(exe, benchmark, elapsed):
+        def submit_callback(exe, benchmark, elapsed, size):
             benchmark = os.path.basename(benchmark)
 
             if benchmark.endswith(".py"):
@@ -323,6 +332,7 @@ def main():
             else:
                 commitid = get_git_rev(args.pyston_dir, args.allow_dirty)
             codespeed_submit.submit(commitid=commitid, benchmark=benchmark, executable=exe.name, value=elapsed)
+            codespeed_submit.submit(commitid=commitid, benchmark=(benchmark+"_maxrss"), executable=exe.name, value=size)
         callbacks.append(submit_callback)
 
     def report_name_for_exe(exe):
@@ -337,9 +347,9 @@ def main():
 
     if args.save_by_commit:
         git_rev = git_rev or get_git_rev(args.pyston_dir, args.allow_dirty)
-        def save_callback(exe, benchmark, elapsed):
+        def save_callback(exe, benchmark, elapsed, size):
             report_name = report_name_for_exe(exe)
-            model.save_result(report_name, benchmark, elapsed)
+            model.save_result(report_name, benchmark, elapsed, size)
         callbacks.append(save_callback)
 
     if args.compare_to:
@@ -359,16 +369,16 @@ def main():
         if not args.use_previous and args.save_report != args.view:
             model.clear_report(args.save_report)
         print "Saving results as '%s'" % args.save_report
-        def save_report_callback(exe, benchmark, elapsed):
+        def save_report_callback(exe, benchmark, elapsed, size):
             old_val = model.get_result(args.save_report, benchmark)
-            model.save_result(args.save_report, benchmark, elapsed)
+            model.save_result(args.save_report, benchmark, elapsed, size)
             if old_val is not None and args.take_min:
-                print "(prev min: %.2fs)" % (old_val,),
+                print "(prev min: %.2fs / %2.1fMB)" % (old_val[0], old_val[1]),
         callbacks.append(save_report_callback)
 
     tmp_results = []
-    def save_last_callback(exe, benchmark, elapsed):
-        tmp_results.append((exe, benchmark, elapsed))
+    def save_last_callback(exe, benchmark, elapsed, size):
+        tmp_results.append((exe, benchmark, elapsed, size))
     callbacks.append(save_last_callback)
 
     if args.use_previous:
@@ -386,14 +396,14 @@ def main():
 
     try:
         run_tests(executables, benchmarks, filters, callbacks, benchmark_dir)
-    except KeyboardInterrupt:
-        print "Interrupted"
-        sys.exit(1)
+    # except KeyboardInterrupt:
+        # print "Interrupted"
+        # sys.exit(1)
     finally:
         model.clear_report("last")
         print "Saving results to 'last'"
-        for (exe, benchmark, elapsed) in tmp_results:
-            model.save_result("last", benchmark, elapsed)
+        for (exe, benchmark, elapsed, size) in tmp_results:
+            model.save_result("last", benchmark, elapsed, size)
 
 if __name__ == "__main__":
     main()
