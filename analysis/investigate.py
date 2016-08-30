@@ -90,7 +90,9 @@ def build(revision, src_dir):
                 subprocess.check_call(["make", build_type], cwd=src_dir)
 
             assert os.path.exists(build_dir), build_dir
-            for d in ["lib_pyston", "from_cpython"]:
+            # Copy both the old directories (lib_pyston, from_cpython) and the new one (lib)
+            # to be compatible before and after the path changes.
+            for d in ["lib_pyston", "from_cpython", "lib"]:
                 shutil.copytree(os.path.join(build_dir, d), os.path.join(this_save_dir, d))
             shutil.copy(os.path.join(build_dir, "pyston"), dest_fn)
         return r
