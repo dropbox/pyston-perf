@@ -93,7 +93,8 @@ def build(revision, src_dir):
             # Copy both the old directories (lib_pyston, from_cpython) and the new one (lib)
             # to be compatible before and after the path changes.
             for d in ["lib_pyston", "from_cpython", "lib"]:
-                shutil.copytree(os.path.join(build_dir, d), os.path.join(this_save_dir, d))
+                if os.path.exists(os.path.join(build_dir, d)):
+                    shutil.copytree(os.path.join(build_dir, d), os.path.join(this_save_dir, d))
             shutil.copy(os.path.join(build_dir, "pyston"), dest_fn)
         return r
     finally:
@@ -118,7 +119,11 @@ def run_test(revision, benchmark):
     print "In %r" % save_dir
 
     run_perf = True
-    args = [fn, "-s", bm_fn]
+
+    # This option changed from "-s" to "-T" in d1e16e8
+    STATS_OPTION = "-T"
+
+    args = [fn, STATS_OPTION, bm_fn]
     if run_perf:
         args = ["perf", "record", "-g", "-o", "perf.data", "--"] + args
 
@@ -411,6 +416,12 @@ def compareAll(rev1, rev2):
                 assert len(args) == 1
                 b = args[0]
                 compareBenchmark(rev1_orig, rev2_orig, b)
+            elif cmd == 'delete_revs':
+                for benchmark in BENCHMARKS:
+                    runs1 = get_runs(rev1, benchmark)
+                    runs2 = get_runs(rev2, benchmark)
+                    for run in runs1 + runs2:
+                        remove_run(run.id)
             elif cmd == 'q':
                 break
             else:
