@@ -150,7 +150,9 @@ def run_test(revision, benchmark):
 def remove_run(run_id):
     print "Removing run", run_id
     model.delete_run(run_id)
-    shutil.rmtree(get_run_save_dir(run_id))
+    dir = get_run_save_dir(run_id)
+    if os.path.exists(dir):
+        shutil.rmtree(dir)
 
 def do_three_runs(rev, benchmark):
     # Forcibly removing the cache improves performance consistency:
@@ -215,6 +217,11 @@ def compareBenchmark(rev1, rev2, benchmark):
                 assert len(args) == 1
                 run_id = int(args[0])
                 remove_run(run_id)
+            elif cmd == 'delete_all':
+                runs1 = get_runs(rev1, benchmark)
+                runs2 = get_runs(rev2, benchmark)
+                for run in runs1 + runs2:
+                    remove_run(run.id)
             elif cmd == 'p':
                 assert len(args) == 1
                 run_id = int(args[0])
