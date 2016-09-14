@@ -354,13 +354,13 @@ def main():
 
     if args.compare_to:
         print "Comparing to '%s'" % args.compare_to
-        def compare_callback(exe, benchmark, elapsed):
+        def compare_callback(exe, benchmark, elapsed, size):
             for report_name in args.compare_to:
                 v = model.get_result(report_name, benchmark)
                 if v is None:
                     print "(no %s)" % report_name,
                 else:
-                    print "%s: %.2f (%s%%)" % (report_name, v, "{:5.1f}".format((elapsed - v) / v * 100)),
+                    print "%s: %.2fs (%s%%)" % (report_name, v[0], "{:5.1f}".format((elapsed - v[0]) / v[0] * 100)),
         callbacks.append(compare_callback)
 
     if args.save_report:
