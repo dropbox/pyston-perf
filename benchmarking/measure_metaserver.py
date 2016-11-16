@@ -6,7 +6,8 @@ import subprocess
 
 import codespeed_submit
 
-assert os.path.exists("/home/vagrant/dev/packman/test_metaserver_perf.py")
+BENCHMARK_SCRIPT = "/srv/server/test_metaserver_perf.py"
+assert os.path.exists(BENCHMARK_SCRIPT)
 
 CPYTHON = False
 
@@ -30,7 +31,7 @@ def main():
 
 
     def do_run():
-        args = ["python", "/home/vagrant/dev/packman/test_metaserver_perf.py", "--perf-tracking"]
+        args = ["python", BENCHMARK_SCRIPT, "--perf-tracking"]
         if CPYTHON:
             args.append("--cpython")
         o = subprocess.check_output(args)
